@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: alfredo-bot
+    restart: always
+    volumes:
+      - alfredo_data:/app/data
+    env_file:
+      - .env
+
+volumes:
+  alfredo_data:
+    name: alfredo_bot_data

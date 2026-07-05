@@ -27,7 +27,7 @@ MAX_REMINDER_MINUTES: int = 1440  # 24 horas
 
 # --- Caminhos ---
 PROJECT_ROOT = Path(__file__).parent.parent
-DB_PATH = str(PROJECT_ROOT / "alfredo.db")
+DB_PATH = str(PROJECT_ROOT / "data" / "alfredo.db")
 
 # --- Validação de variáveis obrigatórias ---
 _REQUIRED_VARS = {

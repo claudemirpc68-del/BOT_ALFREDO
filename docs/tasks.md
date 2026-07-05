@@ -11,6 +11,8 @@ Matriz de prioridades e backlog das tarefas de desenvolvimento do bot ALFREDO, s
 
 
 ## ✅ Concluído (Done)
+- [x] Ajustar DB_PATH e gitignore para isolar dados do banco <!-- id: T19 -->
+- [x] Criar Dockerfile e docker-compose.yml para deploy 24/7 <!-- id: T20 -->
 - [x] Aumentar timeout do cliente HTTP do Telegram para robustez de rede <!-- id: T18 -->
 - [x] Desenvolver script de validação de ponta a ponta de todas as funcionalidades do bot <!-- id: T17 -->
 - [x] Integrar Custom Actions do Rasa com a API do Groq para geração dinâmica <!-- id: T16 -->
