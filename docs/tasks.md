@@ -5,10 +5,15 @@ Matriz de prioridades e backlog das tarefas de desenvolvimento do bot ALFREDO, s
 ---
 
 ## 🏃 Em Andamento (In Progress)
+- [ ] Criar estrutura mínima de arquivos do Rasa (domain.yml, config.yml, etc.) <!-- id: T12 -->
+- [ ] Implementar as novas Custom Actions no actions/actions.py <!-- id: T13 -->
+- [ ] Adicionar dependência do rasa-sdk ao requirements.txt e instalar <!-- id: T14 -->
 
 ## 📋 A Fazer (Backlog)
+- [ ] Criar testes de unidade para as Custom Actions do LinkedIn em tests/test_rasa_action.py <!-- id: T15 -->
 - [ ] Validação local automatizada do formato EARS no PRD <!-- id: T02 -->
 - [ ] Expansão dos testes unitários das ferramentas de comandos (/resumir, /traduzir) <!-- id: T03 -->
+
 
 ## ✅ Concluído (Done)
 - [x] Implementação inicial da disciplina Spec-Driven Development (Setup de hooks e CI) <!-- id: T01 -->

@@ -1,0 +1,31 @@
+version: "3.1"
+
+intents:
+  - provide_article
+  - request_comments_evaluation
+  - request_post_generation
+  - buscar_olhardigital_ai
+
+slots:
+  preferencias:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: null
+            requested_slot: null
+
+responses:
+  utter_greet:
+    - text: "Olá! Sou o ALFREDO. Como posso te ajudar hoje?"
+
+actions:
+  - action_buscar_olhardigital_ai
+  - action_extract_topics
+  - action_generate_comments
+  - action_generate_linkedin_post
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

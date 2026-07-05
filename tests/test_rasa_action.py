@@ -5,7 +5,12 @@ Mocka o Rasa Tracker, CollectingDispatcher e a execução da skill.
 
 import pytest
 from unittest.mock import MagicMock, patch
-from actions.actions import ActionBuscarOlharDigitalAI
+from actions.actions import (
+    ActionBuscarOlharDigitalAI,
+    ActionExtractTopics,
+    ActionGenerateComments,
+    ActionGenerateLinkedinPost,
+)
 
 
 class TestActionBuscarOlharDigitalAI:
@@ -80,3 +85,63 @@ class TestActionBuscarOlharDigitalAI:
         dispatcher.utter_message.assert_called_once_with(
             text="Erro: Chave de API TAVILY_API_KEY não configurada no ambiente."
         )
+
+
+class TestActionExtractTopics:
+    def test_action_name(self):
+        action = ActionExtractTopics()
+        assert action.name() == "action_extract_topics"
+
+    def test_run(self):
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        tracker.latest_message = {'text': 'Artigo de teste sobre Inteligência Artificial'}
+        domain = {}
+
+        action = ActionExtractTopics()
+        events = action.run(dispatcher, tracker, domain)
+
+        assert events == []
+        dispatcher.utter_message.assert_called_once_with(
+            text="Tópicos identificados: Inteligência Artificial, Tecnologia, Inovação"
+        )
+
+
+class TestActionGenerateComments:
+    def test_action_name(self):
+        action = ActionGenerateComments()
+        assert action.name() == "action_generate_comments"
+
+    def test_run(self):
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        domain = {}
+
+        action = ActionGenerateComments()
+        events = action.run(dispatcher, tracker, domain)
+
+        assert events == []
+        dispatcher.utter_message.assert_called_once_with(
+            text="Comentários: \n- Ponto forte: inovação\n- Ponto fraco: riscos éticos\n- Relevância: impacto no mercado de trabalho"
+        )
+
+
+class TestActionGenerateLinkedinPost:
+    def test_action_name(self):
+        action = ActionGenerateLinkedinPost()
+        assert action.name() == "action_generate_linkedin_post"
+
+    def test_run(self):
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        domain = {}
+
+        action = ActionGenerateLinkedinPost()
+        events = action.run(dispatcher, tracker, domain)
+
+        assert events == []
+        assert dispatcher.utter_message.call_count == 1
+        msg = dispatcher.utter_message.call_args[1].get("text")
+        assert "A IA não vai roubar seu emprego" in msg
+        assert "#InteligênciaArtificial" in msg
+

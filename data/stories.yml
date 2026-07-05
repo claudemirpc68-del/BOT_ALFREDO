@@ -1,0 +1,11 @@
+version: "3.1"
+
+stories:
+- story: gerar_post_viral
+  steps:
+  - intent: provide_article
+  - action: action_extract_topics
+  - intent: request_comments_evaluation
+  - action: action_generate_comments
+  - intent: request_post_generation
+  - action: action_generate_linkedin_post

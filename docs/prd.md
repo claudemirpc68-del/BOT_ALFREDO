@@ -28,6 +28,10 @@ O ALFREDO é um bot no Telegram voltado a auxiliar usuários em conversação co
 * **ER08:** Quando um usuário invocar o comando `/nova`, o sistema deve apagar o histórico de mensagens da sessão de conversação no banco de dados.
 * **ER09:** Quando um usuário invocar o comando `/status`, o sistema deve exibir informações sobre o status da sessão e integridade do bot.
 * **ER10:** Quando o usuário invocar o comando `/help` ou `/start`, o sistema deve retornar a lista e descrição dos comandos disponíveis.
+* **ER11:** Quando o usuário fornecer um artigo sobre TI ou IA, o sistema Rasa deve extrair os tópicos principais através da ação `action_extract_topics`.
+* **ER12:** Quando o usuário solicitar comentários ou avaliações sobre o texto fornecido, o sistema Rasa deve gerar insights críticos de pontos fortes e fracos usando `action_generate_comments`.
+* **ER13:** Quando o usuário solicitar a geração de um post para o LinkedIn, o sistema Rasa deve gerar e formatar o post estruturado usando a ação `action_generate_linkedin_post`.
+
 
 ### State-Driven Requirements (Orientados a Estado)
 * **SR01:** Enquanto houver uma sessão de conversação activa para um chat ID específico, o sistema deve anexar o histórico de mensagens ao contexto do prompt de envio do Gemini para manter a memória da conversa.

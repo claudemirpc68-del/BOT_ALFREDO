@@ -1,0 +1,29 @@
+version: "3.1"
+
+nlu:
+- intent: provide_article
+  examples: |
+    - Aqui está um artigo sobre inteligência artificial
+    - Vou te passar um texto sobre TI
+    - Este artigo fala sobre cibersegurança
+    - Veja este artigo: https://site.com
+    - Leia este texto que fala sobre tecnologia
+    - Aqui está um post interessante
+
+- intent: request_comments_evaluation
+  examples: |
+    - Crie comentários e avaliações sobre este artigo
+    - Me dê insights críticos sobre o texto
+    - Avalie os pontos fortes e fracos do artigo
+    - Quais são as críticas sobre isso?
+    - Comente sobre esse post por favor
+    - Faça uma avaliação crítica desse texto
+
+- intent: request_post_generation
+  examples: |
+    - Transforme isso em um post para o LinkedIn
+    - Crie um post viral baseado nesse artigo
+    - Gere um enredo para LinkedIn a partir do texto
+    - Faça um post profissional pro LinkedIn
+    - Me dá um texto de linkedin baseado nisso
+    - Escreva um post engajador para o linkedin
