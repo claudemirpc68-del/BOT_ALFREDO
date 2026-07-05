@@ -11,6 +11,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.request import HTTPXRequest
 
 from bot.config import TELEGRAM_BOT_TOKEN, GROQ_API_KEY, GROQ_MODEL, BOT_NAME, DB_PATH, TAVILY_API_KEY
 from bot.database.db import Database
@@ -98,10 +99,14 @@ def main() -> None:
 =============================================
     """)
 
+    # Configura cliente HTTP com timeout expandido para conexões instáveis
+    request_config = HTTPXRequest(connect_timeout=20.0, read_timeout=20.0)
+
     # Constrói a aplicação
     app = (
         ApplicationBuilder()
         .token(TELEGRAM_BOT_TOKEN)
+        .request(request_config)
         .post_init(post_init)
         .post_shutdown(post_shutdown)
         .build()

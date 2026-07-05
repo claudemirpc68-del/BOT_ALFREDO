@@ -32,13 +32,25 @@ if [ -n "$CODE_CHANGED" ]; then
     echo "✅ Specs/tasks atualizados - commit permitido"
 fi
 
-# Verificar se arquivos de spec existem
-if [ ! -f "docs/prd.md" ]; then
-    echo "⚠️  Aviso: docs/prd.md não encontrado"
-fi
-
-if [ ! -f "docs/tasks.md" ]; then
-    echo "⚠️  Aviso: docs/tasks.md não encontrado"
+# Validar sintaxe EARS no PRD se o arquivo existir
+if [ -f "docs/prd.md" ]; then
+    echo "🔍 Validando formato EARS no PRD..."
+    if [ -f ".venv/bin/python" ]; then
+        PYTHON_EXEC=".venv/bin/python"
+    elif [ -f "venv/bin/python" ]; then
+        PYTHON_EXEC="venv/bin/python"
+    else
+        PYTHON_EXEC="python"
+    fi
+    
+    $PYTHON_EXEC scripts/valida_ears.py
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ BLOQUEADO: Sintaxe EARS inválida detectada no docs/prd.md!"
+        echo "Corrija os erros listados acima antes de realizar o commit."
+        echo ""
+        exit 1
+    fi
 fi
 
 echo "✅ Verificação SDD concluída"

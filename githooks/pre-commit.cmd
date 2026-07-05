@@ -34,4 +34,26 @@ if %ERRORLEVEL% EQU 0 (
     echo ✅ Specs/tasks atualizados - commit permitido
 )
 
+REM Validar sintaxe EARS no PRD se o arquivo existir
+if exist docs\prd.md (
+    echo 🔍 Validando formato EARS no PRD...
+    
+    if exist .venv\Scripts\python.exe (
+        set PYTHON_EXEC=.venv\Scripts\python.exe
+    ) else if exist venv\Scripts\python.exe (
+        set PYTHON_EXEC=venv\Scripts\python.exe
+    ) else (
+        set PYTHON_EXEC=python
+    )
+    
+    %PYTHON_EXEC% scripts\valida_ears.py
+    if %ERRORLEVEL% NEQ 0 (
+        echo.
+        echo ❌ BLOQUEADO: Sintaxe EARS inválida detectada no docs/prd.md!
+        echo Corrija os erros listados acima antes de realizar o commit.
+        echo.
+        exit /b 1
+    )
+)
+
 echo ✅ Verificação SDD concluída

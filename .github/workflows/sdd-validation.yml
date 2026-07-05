@@ -19,59 +19,60 @@ jobs:
 
       - name: Verificar existência de specs
         run: |
-          echo "📋 Verificando documentação Spec-Driven..."
+          echo "Verificando documentação Spec-Driven..."
           
           if [ ! -f "docs/prd.md" ]; then
-            echo "❌ Erro: docs/prd.md não encontrado"
+            echo "Erro: docs/prd.md não encontrado"
             echo "Todo PR deve incluir um PRD em docs/prd.md"
             exit 1
           fi
           
           if [ ! -f "docs/tasks.md" ]; then
-            echo "❌ Erro: docs/tasks.md não encontrado"
+            echo "Erro: docs/tasks.md não encontrado"
             echo "Todo PR deve incluir tasks em docs/tasks.md"
             exit 1
           fi
           
-          echo "✅ Arquivos de spec encontrados"
+          echo "Arquivos de spec encontrados"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Validar estrutura EARS
         run: |
-          echo "🔍 Validando formato EARS no PRD..."
-          
-          # Verificar se PRD tem seções EARS
-          if ! grep -q "Ubiquitous\|Event-Driven\|State-Driven\|Unwanted" docs/prd.md; then
-            echo "⚠️  Aviso: PRD não contém seções EARS padrão"
-          fi
-      
+          echo "Validando formato EARS no PRD..."
+          python scripts/valida_ears.py
+
       - name: Verificar sincronização code-spec
         run: |
-          echo "🔄 Verificando sincronização código-spec..."
+          echo "Verificando sincronização código-spec..."
           
-          # Contar requisitos
-          REQS=$(grep -c "^-\s\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")
+          # Contar requisitos usando a regex correta de bullet points (* **UR01:**)
+          REQS=$(grep -c "^\*\s\*\*\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")
           TASKS=$(grep -c "^\-\s\[" docs/tasks.md 2>/dev/null || echo "0")
           
           echo "Requisitos no PRD: $REQS"
           echo "Tarefas pendentes: $TASKS"
           
           if [ "$REQS" -gt 0 ] && [ "$TASKS" -eq 0 ]; then
-            echo "⚠️  Aviso: PRD tem requisitos mas tasks.md está vazio"
+            echo "Aviso: PRD tem requisitos mas tasks.md está vazio"
           fi
 
       - name: Gerar relatório SDD
         if: always()
         run: |
-          echo "# 📊 Relatório Spec-Driven" > sdd-report.md
+          echo "# Relatório Spec-Driven" > sdd-report.md
           echo "" >> sdd-report.md
-          echo "## Status: ✅ Validação Concluída" >> sdd-report.md
+          echo "## Status: Validação Concluída" >> sdd-report.md
           echo "" >> sdd-report.md
           echo "### Documentação" >> sdd-report.md
           echo "- [x] PRD existe" >> sdd-report.md
           echo "- [x] Tasks existe" >> sdd-report.md
           echo "" >> sdd-report.md
           echo "### Métricas" >> sdd-report.md
-          echo "- Requisitos: $(grep -c "^-\s\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")" >> sdd-report.md
+          echo "- Requisitos: $(grep -c "^\*\s\*\*\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")" >> sdd-report.md
           echo "- Tarefas: $(grep -c "^\-\s\[" docs/tasks.md 2>/dev/null || echo "0")" >> sdd-report.md
           
       - name: Upload SDD Report
