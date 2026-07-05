@@ -7,8 +7,6 @@ services:
     restart: always
     volumes:
       - alfredo_data:/app/data
-    env_file:
-      - .env
     command: python run.py
 
 volumes:
