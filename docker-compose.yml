@@ -9,6 +9,7 @@ services:
       - alfredo_data:/app/data
     env_file:
       - .env
+    command: python run.py
 
 volumes:
   alfredo_data:
