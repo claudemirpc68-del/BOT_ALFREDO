@@ -5,13 +5,13 @@ Matriz de prioridades e backlog das tarefas de desenvolvimento do bot ALFREDO, s
 ---
 
 ## 🏃 Em Andamento (In Progress)
-- [ ] Implementação inicial da disciplina Spec-Driven Development (Setup de hooks e CI) <!-- id: T01 -->
 
 ## 📋 A Fazer (Backlog)
 - [ ] Validação local automatizada do formato EARS no PRD <!-- id: T02 -->
 - [ ] Expansão dos testes unitários das ferramentas de comandos (/resumir, /traduzir) <!-- id: T03 -->
 
 ## ✅ Concluído (Done)
+- [x] Implementação inicial da disciplina Spec-Driven Development (Setup de hooks e CI) <!-- id: T01 -->
 - [x] Criação do esqueleto assíncrono do bot Telegram em python-telegram-bot <!-- id: T04 -->
 - [x] Conexão com a biblioteca `google-genai` para prompts e chat com Gemini <!-- id: T05 -->
 - [x] Implementação de banco de dados assíncrono com aiosqlite para armazenar mensagens <!-- id: T06 -->
