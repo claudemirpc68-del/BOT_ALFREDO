@@ -1,0 +1,44 @@
+#!/bin/sh
+# Pre-commit hook: Exige que specs e tasks sejam atualizados antes de commit
+# Spec-Driven Development Discipline (ALFREDO)
+
+echo "🔍 Verificando disciplina Spec-Driven..."
+
+# Verificar se há alterações em arquivos de código
+CODE_CHANGED=$(git diff --cached --name-only | grep -E '\.(js|jsx|ts|tsx|py|go|rs|java|sql)$' | head -1)
+
+if [ -n "$CODE_CHANGED" ]; then
+    echo "📦 Alterações em código detectadas: $CODE_CHANGED"
+    
+    # Verificar se specs foram atualizados
+    SPECS_CHANGED=$(git diff --cached --name-only | grep -E '(prd\.md|specs/|\.spec\.)' | head -1)
+    TASKS_CHANGED=$(git diff --cached --name-only | grep -E '(tasks\.md|TODO|CHECKLIST)' | head -1)
+    
+    if [ -z "$SPECS_CHANGED" ] && [ -z "$TASKS_CHANGED" ]; then
+        echo ""
+        echo "❌ BLOQUEADO: Alterações em código sem atualização de specs/tasks!"
+        echo ""
+        echo "📋 Requisitos Spec-Driven:"
+        echo "   1. Atualize docs/prd.md com os requisitos afetados"
+        echo "   2. Atualize docs/tasks.md com as novas tarefas"
+        echo "   3. Execute: git add docs/prd.md docs/tasks.md"
+        echo ""
+        echo "💡 Alternativas:"
+        echo "   - git commit --no-verify (apenas em emergências)"
+        echo ""
+        exit 1
+    fi
+    
+    echo "✅ Specs/tasks atualizados - commit permitido"
+fi
+
+# Verificar se arquivos de spec existem
+if [ ! -f "docs/prd.md" ]; then
+    echo "⚠️  Aviso: docs/prd.md não encontrado"
+fi
+
+if [ ! -f "docs/tasks.md" ]; then
+    echo "⚠️  Aviso: docs/tasks.md não encontrado"
+fi
+
+echo "✅ Verificação SDD concluída"

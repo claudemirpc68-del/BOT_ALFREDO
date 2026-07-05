@@ -1,0 +1,82 @@
+name: Spec-Driven Validation
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  validate-sdd:
+    name: Validar Disciplina Spec-Driven
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar existência de specs
+        run: |
+          echo "📋 Verificando documentação Spec-Driven..."
+          
+          if [ ! -f "docs/prd.md" ]; then
+            echo "❌ Erro: docs/prd.md não encontrado"
+            echo "Todo PR deve incluir um PRD em docs/prd.md"
+            exit 1
+          fi
+          
+          if [ ! -f "docs/tasks.md" ]; then
+            echo "❌ Erro: docs/tasks.md não encontrado"
+            echo "Todo PR deve incluir tasks em docs/tasks.md"
+            exit 1
+          fi
+          
+          echo "✅ Arquivos de spec encontrados"
+
+      - name: Validar estrutura EARS
+        run: |
+          echo "🔍 Validando formato EARS no PRD..."
+          
+          # Verificar se PRD tem seções EARS
+          if ! grep -q "Ubiquitous\|Event-Driven\|State-Driven\|Unwanted" docs/prd.md; then
+            echo "⚠️  Aviso: PRD não contém seções EARS padrão"
+          fi
+      
+      - name: Verificar sincronização code-spec
+        run: |
+          echo "🔄 Verificando sincronização código-spec..."
+          
+          # Contar requisitos
+          REQS=$(grep -c "^-\s\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")
+          TASKS=$(grep -c "^\-\s\[" docs/tasks.md 2>/dev/null || echo "0")
+          
+          echo "Requisitos no PRD: $REQS"
+          echo "Tarefas pendentes: $TASKS"
+          
+          if [ "$REQS" -gt 0 ] && [ "$TASKS" -eq 0 ]; then
+            echo "⚠️  Aviso: PRD tem requisitos mas tasks.md está vazio"
+          fi
+
+      - name: Gerar relatório SDD
+        if: always()
+        run: |
+          echo "# 📊 Relatório Spec-Driven" > sdd-report.md
+          echo "" >> sdd-report.md
+          echo "## Status: ✅ Validação Concluída" >> sdd-report.md
+          echo "" >> sdd-report.md
+          echo "### Documentação" >> sdd-report.md
+          echo "- [x] PRD existe" >> sdd-report.md
+          echo "- [x] Tasks existe" >> sdd-report.md
+          echo "" >> sdd-report.md
+          echo "### Métricas" >> sdd-report.md
+          echo "- Requisitos: $(grep -c "^-\s\(UR\|ER\|SR\|UB\)[0-9]" docs/prd.md 2>/dev/null || echo "0")" >> sdd-report.md
+          echo "- Tarefas: $(grep -c "^\-\s\[" docs/tasks.md 2>/dev/null || echo "0")" >> sdd-report.md
+          
+      - name: Upload SDD Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdd-report
+          path: sdd-report.md

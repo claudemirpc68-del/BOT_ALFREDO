@@ -1,0 +1,39 @@
+#!/bin/sh
+# Pre-merge hook: Valida que merges de feature branches incluem specs
+# Spec-Driven Development - Merge Guard (ALFREDO)
+
+echo "🔒 Validação Spec-Driven para merge..."
+
+# Verificar o nome da branch atual
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "master" ]; then
+    echo "✅ Branch principal - skip"
+    exit 0
+fi
+
+# Verificar arquivos staged
+STAGED_FILES=$(git diff --cached --name-only)
+CODE_FILES=$(echo "$STAGED_FILES" | grep -E '\.(js|jsx|ts|tsx|py|go|rs|java|sql)$' | wc -l)
+SPEC_FILES=$(echo "$STAGED_FILES" | grep -E '(prd\.md|specs/)' | wc -l)
+TASK_FILES=$(echo "$STAGED_FILES" | grep -E '(tasks\.md)' | wc -l)
+
+if [ "$CODE_FILES" -gt 0 ]; then
+    if [ "$SPEC_FILES" -eq 0 ] && [ "$TASK_FILES" -eq 0 ]; then
+        echo ""
+        echo "❌ MERGE BLOQUEADO: Mudanças de código sem specs ou tasks correspondentes!"
+        echo ""
+        echo "Branch: $BRANCH_NAME"
+        echo "Arquivos de código: $CODE_FILES"
+        echo "Arquivos de spec: $SPEC_FILES"
+        echo "Arquivos de task: $TASK_FILES"
+        echo ""
+        echo "📋 Para fazer merge, certifique-se de atualizar:"
+        echo "   - docs/prd.md (requisitos)"
+        echo "   - docs/tasks.md (tarefas)"
+        echo ""
+        exit 1
+    fi
+fi
+
+echo "✅ Validação SDD passou"
