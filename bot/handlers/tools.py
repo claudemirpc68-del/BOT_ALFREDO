@@ -397,6 +397,26 @@ async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
+# ── /hora ─────────────────────────────────────────────────────
+
+async def hora_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Responde com a data e hora atual formatada."""
+    from datetime import datetime
+    agora = datetime.now()
+    dias_semana = {
+        0: "Segunda-feira", 1: "Terça-feira", 2: "Quarta-feira",
+        3: "Quinta-feira", 4: "Sexta-feira", 5: "Sábado", 6: "Domingo"
+    }
+    dia_str = dias_semana[agora.weekday()]
+    data_formatada = agora.strftime(f"{dia_str}, %d/%m/%Y às %H:%M:%S")
+    
+    await update.message.reply_text(
+        f"📅 *Data e Hora Atual:*\n"
+        f"⏰ `{data_formatada}`",
+        parse_mode="Markdown"
+    )
+
+
 # ── Utilitários ──────────────────────────────────────────────
 
 def _get_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str | None:

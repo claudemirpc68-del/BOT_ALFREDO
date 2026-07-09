@@ -27,6 +27,7 @@ from bot.handlers.tools import (
     linkedin_command,
     olhardigital_command,
     instagram_command,
+    hora_command,
 )
 from bot.services.groq_service import GroqService
 from bot.services.tavily_service import TavilyService
@@ -126,6 +127,8 @@ def main() -> None:
     app.add_handler(CommandHandler("pesquisar", pesquisar_command))
     app.add_handler(CommandHandler("lembrete", lembrete_command))
     app.add_handler(CommandHandler("olhardigital", olhardigital_command))
+    app.add_handler(CommandHandler("hora", hora_command))
+    app.add_handler(CommandHandler("data", hora_command))
 
     # ── Registra handlers de mensagens ──
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))

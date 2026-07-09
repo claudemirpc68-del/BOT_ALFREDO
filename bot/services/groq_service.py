@@ -26,7 +26,10 @@ class GroqService:
         Usa: persona + skill "chat"
         """
         try:
+            from datetime import datetime
             prompt = build_prompt("chat")
+            agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual: {agora}. Use esta referência caso precise responder sobre tempo ou datas."
             messages = [{"role": "system", "content": prompt}]
             
             # Adiciona o histórico

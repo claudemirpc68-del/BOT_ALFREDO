@@ -17,7 +17,7 @@ GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
 
 # --- Configurações do Bot ---
-GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 BOT_NAME: str = os.getenv("BOT_NAME", "ALFREDO")
 
 # --- Constantes ---
