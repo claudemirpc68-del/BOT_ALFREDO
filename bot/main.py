@@ -30,6 +30,7 @@ from bot.handlers.tools import (
     olhardigital_command,
     instagram_command,
     hora_command,
+    boletim_command,
 )
 from bot.services.groq_service import GroqService
 from bot.services.tavily_service import TavilyService
@@ -135,6 +136,25 @@ async def post_init(application) -> None:
     except Exception as e:
         logger.error(f"Erro ao restaurar lembretes na inicialização: {e}")
 
+    # Agendamento do Boletim Diário Automático (19h00)
+    try:
+        from bot.handlers.tools import _daily_boletim_job
+        from datetime import time
+        trigger_time_19h = time(19, 0, tzinfo=tz)
+        
+        # Remove job anterior se já existir para evitar duplicidade
+        for job in application.job_queue.get_jobs_by_name("boletim_diario_19h"):
+            job.schedule_removal()
+            
+        application.job_queue.run_daily(
+            _daily_boletim_job,
+            time=trigger_time_19h,
+            name="boletim_diario_19h"
+        )
+        logger.info("Agendamento do Boletim Diário Automático (19h00) configurado com sucesso.")
+    except Exception as ex:
+        logger.error(f"Erro ao agendar Boletim Diário das 19h: {ex}")
+
 
 async def post_shutdown(application) -> None:
     """Fecha conexões ao encerrar o bot."""
@@ -198,6 +218,7 @@ def main() -> None:
     app.add_handler(CommandHandler("lembretes", lembretes_command))
     app.add_handler(CommandHandler("lembrete_cancelar", lembrete_cancelar_command))
     app.add_handler(CommandHandler("olhardigital", olhardigital_command))
+    app.add_handler(CommandHandler("boletim", boletim_command))
     app.add_handler(CommandHandler("hora", hora_command))
     app.add_handler(CommandHandler("data", hora_command))
 

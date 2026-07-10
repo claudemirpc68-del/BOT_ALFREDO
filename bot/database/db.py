@@ -222,6 +222,12 @@ class Database:
         )
         await self._db.commit()
 
+    async def get_active_users(self) -> list[int]:
+        """Retorna uma lista com o ID de todos os usuários registrados."""
+        cursor = await self._db.execute("SELECT user_id FROM users")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
     # ── Lifecycle ─────────────────────────────────────────────
 
     async def close(self) -> None:

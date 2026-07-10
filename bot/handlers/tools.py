@@ -606,6 +606,158 @@ async def lembrete_cancelar_command(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("❌ Ocorreu um erro ao cancelar o lembrete.")
 
 
+# ── /boletim ──────────────────────────────────────────────────
+
+async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Busca notícias recentes de Brasil e Mundo nos portais confiáveis e gera um boletim instantâneo."""
+    db = context.bot_data["db"]
+    groq = context.bot_data["groq"]
+    tavily = context.bot_data["tavily"]
+    user = update.effective_user
+
+    # Garante que o usuário está registrado no banco
+    try:
+        await db.save_user(user.id, user.username, user.first_name, user.last_name)
+    except Exception as e:
+        logger.error(f"Erro ao registrar usuário ao solicitar boletim: {e}")
+
+    await update.message.chat.send_action("typing")
+
+    try:
+        # Busca notícias para Brasil e Mundo
+        manchetes = {}
+        for termo in ["Brasil", "Mundo"]:
+            query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
+            try:
+                busca = await tavily.search(query)
+                manchetes[termo] = tavily.extract_context(busca)
+            except Exception as ex:
+                logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim: {ex}")
+                manchetes[termo] = "Não foi possível obter notícias recentes dos servidores de busca."
+
+        # Combina os resultados
+        contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
+
+        from bot.prompts.skills import build_prompt
+        prompt = build_prompt("news_digest")
+
+        from datetime import datetime, timezone, timedelta
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("America/Sao_Paulo")
+            agora_dt = datetime.now(tz)
+        except Exception:
+            tz = timezone(timedelta(hours=-3))
+            agora_dt = datetime.now(tz)
+
+        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
+
+        messages = [
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": (
+                    "Elabore o Boletim de Notícias de hoje.\n\n"
+                    "Temas fixos: Brasil e Mundo\n\n"
+                    f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
+                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                )
+            }
+        ]
+
+        response = await groq.client.chat.completions.create(
+            model=groq.model,
+            messages=messages,
+            temperature=0.6,
+            max_tokens=2048
+        )
+
+        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias de hoje."
+        await update.message.reply_text(texto_resumo, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Erro ao gerar boletim de notícias: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ocorreu um erro ao buscar e resumir as notícias de hoje.")
+
+
+async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback diário executado automaticamente às 19:00 para enviar o boletim a todos os usuários."""
+    db = context.application.bot_data["db"]
+    groq = context.application.bot_data["groq"]
+    tavily = context.application.bot_data["tavily"]
+
+    logger.info("Disparando Boletim Diário Automático de Notícias (19h00).")
+
+    try:
+        # Busca notícias para Brasil e Mundo
+        manchetes = {}
+        for termo in ["Brasil", "Mundo"]:
+            query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
+            try:
+                busca = await tavily.search(query)
+                manchetes[termo] = tavily.extract_context(busca)
+            except Exception as ex:
+                logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim automático: {ex}")
+                manchetes[termo] = "Não foi possível obter notícias recentes dos servidores de busca."
+
+        contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
+
+        from bot.prompts.skills import build_prompt
+        prompt = build_prompt("news_digest")
+
+        from datetime import datetime, timezone, timedelta
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("America/Sao_Paulo")
+            agora_dt = datetime.now(tz)
+        except Exception:
+            tz = timezone(timedelta(hours=-3))
+            agora_dt = datetime.now(tz)
+
+        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
+
+        messages = [
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": (
+                    "Elabore o Boletim de Notícias de hoje.\n\n"
+                    "Temas fixos: Brasil e Mundo\n\n"
+                    f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
+                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                )
+            }
+        ]
+
+        response = await groq.client.chat.completions.create(
+            model=groq.model,
+            messages=messages,
+            temperature=0.6,
+            max_tokens=2048
+        )
+
+        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias de hoje."
+
+        # Obtém todos os usuários cadastrados no banco para enviar o boletim
+        usuarios = await db.get_active_users()
+        logger.info(f"Enviando Boletim Automático para {len(usuarios)} usuários.")
+
+        for user_id in usuarios:
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=texto_resumo,
+                    parse_mode="Markdown"
+                )
+            except Exception as send_err:
+                logger.warning(f"Não foi possível enviar boletim diário para o usuário {user_id}: {send_err}")
+
+    except Exception as e:
+        logger.error(f"Erro ao processar boletim de notícias diário automático: {e}", exc_info=True)
+
+
 # ── /olhardigital ─────────────────────────────────────────────
 
 async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
