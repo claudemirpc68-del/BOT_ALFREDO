@@ -18,7 +18,12 @@ TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
 
 # --- Configurações do Bot ---
 GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+if not GROQ_MODEL or not GROQ_MODEL.strip():
+    GROQ_MODEL = "llama-3.3-70b-versatile"
+
 BOT_NAME: str = os.getenv("BOT_NAME", "ALFREDO")
+if not BOT_NAME or not BOT_NAME.strip():
+    BOT_NAME = "ALFREDO"
 
 # --- Constantes ---
 MAX_HISTORY_MESSAGES: int = 20
