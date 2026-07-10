@@ -249,9 +249,16 @@ async def lembrete_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """Cria um lembrete único (minutos) ou recorrente (notícias diárias)."""
     args = context.args or []
     db = context.bot_data["db"]
+    user = update.effective_user
     chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-    user_name = update.effective_user.first_name or "Amigo"
+    user_id = user.id
+    user_name = user.first_name or "Amigo"
+
+    # Garante que o usuário está registrado no banco antes de criar lembretes
+    try:
+        await db.save_user(user.id, user.username, user.first_name, user.last_name)
+    except Exception as e:
+        logger.error(f"Erro ao registrar usuário ao criar lembrete: {e}")
 
     if not args:
         await update.message.reply_text(
@@ -511,9 +518,15 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 async def lembretes_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Lista todos os lembretes ativos do usuário."""
     db = context.bot_data["db"]
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_id = user.id
 
     try:
+        try:
+            await db.save_user(user.id, user.username, user.first_name, user.last_name)
+        except Exception as e:
+            logger.error(f"Erro ao registrar usuário ao listar lembretes: {e}")
+
         reminders = await db.get_user_reminders(user_id)
         if not reminders:
             await update.message.reply_text("⏰ Você não possui nenhum lembrete ativo no momento.")
@@ -549,7 +562,8 @@ async def lembretes_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def lembrete_cancelar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Cancela um lembrete ativo com base no ID."""
     db = context.bot_data["db"]
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_id = user.id
     args = context.args or []
 
     if not args:
@@ -557,6 +571,10 @@ async def lembrete_cancelar_command(update: Update, context: ContextTypes.DEFAUL
         return
 
     try:
+        try:
+            await db.save_user(user.id, user.username, user.first_name, user.last_name)
+        except Exception as e:
+            logger.error(f"Erro ao registrar usuário ao cancelar lembrete: {e}")
         reminder_id = int(args[0])
     except ValueError:
         await update.message.reply_text("⚠️ O ID do lembrete deve ser um número inteiro.")
