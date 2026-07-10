@@ -51,6 +51,17 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS reminders (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id      INTEGER NOT NULL,
+                user_id      INTEGER NOT NULL,
+                type         TEXT NOT NULL CHECK(type IN ('once', 'daily')),
+                trigger_time TEXT NOT NULL,
+                content      TEXT NOT NULL,
+                created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_messages_user
             ON messages(user_id, created_at DESC);
         """)
@@ -133,6 +144,83 @@ class Database:
         )
         row = await cursor.fetchone()
         return row[0] if row else 0
+
+    # ── Lembretes ─────────────────────────────────────────────
+
+    async def save_reminder(
+        self,
+        chat_id: int,
+        user_id: int,
+        reminder_type: str,
+        trigger_time: str,
+        content: str,
+    ) -> int:
+        """Salva um lembrete no banco de dados e retorna seu ID."""
+        cursor = await self._db.execute(
+            """
+            INSERT INTO reminders (chat_id, user_id, type, trigger_time, content)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (chat_id, user_id, reminder_type, trigger_time, content),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_active_reminders(self) -> list[dict]:
+        """Retorna todos os lembretes ativos salvos."""
+        cursor = await self._db.execute(
+            "SELECT id, chat_id, user_id, type, trigger_time, content FROM reminders"
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "chat_id": row[1],
+                "user_id": row[2],
+                "type": row[3],
+                "trigger_time": row[4],
+                "content": row[5],
+            }
+            for row in rows
+        ]
+
+    async def get_user_reminders(self, user_id: int) -> list[dict]:
+        """Retorna todos os lembretes ativos de um usuário específico."""
+        cursor = await self._db.execute(
+            """
+            SELECT id, type, trigger_time, content 
+            FROM reminders 
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "type": row[1],
+                "trigger_time": row[2],
+                "content": row[3],
+            }
+            for row in rows
+        ]
+
+    async def delete_reminder(self, reminder_id: int) -> bool:
+        """Exclui um lembrete pelo ID. Retorna True se excluiu algo."""
+        cursor = await self._db.execute(
+            "DELETE FROM reminders WHERE id = ?",
+            (reminder_id,),
+        )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def delete_once_reminder(self, chat_id: int, trigger_time: str) -> None:
+        """Exclui lembretes únicos que já foram disparados ou expiraram."""
+        await self._db.execute(
+            "DELETE FROM reminders WHERE chat_id = ? AND type = 'once' AND trigger_time = ?",
+            (chat_id, trigger_time),
+        )
+        await self._db.commit()
 
     # ── Lifecycle ─────────────────────────────────────────────
 
