@@ -26,9 +26,16 @@ class GroqService:
         Usa: persona + skill "chat"
         """
         try:
-            from datetime import datetime
+            from datetime import datetime, timezone, timedelta
+            try:
+                from zoneinfo import ZoneInfo
+                tz = ZoneInfo("America/Sao_Paulo")
+                agora_dt = datetime.now(tz)
+            except Exception:
+                tz = timezone(timedelta(hours=-3))
+                agora_dt = datetime.now(tz)
+            agora = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
             prompt = build_prompt("chat")
-            agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual: {agora}. Use esta referência caso precise responder sobre tempo ou datas."
             messages = [{"role": "system", "content": prompt}]
             
