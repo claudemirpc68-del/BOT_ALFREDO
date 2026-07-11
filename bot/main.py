@@ -15,7 +15,7 @@ from telegram.request import HTTPXRequest
 
 from bot.config import TELEGRAM_BOT_TOKEN, GROQ_API_KEY, GROQ_MODEL, BOT_NAME, DB_PATH, TAVILY_API_KEY
 from bot.database.db import Database
-from bot.handlers.chat import handle_photo, handle_text
+from bot.handlers.chat import handle_photo, handle_text, handle_location
 from bot.handlers.settings import nova_command, status_command
 from bot.handlers.start import help_command, start_command
 from bot.handlers.tools import (
@@ -32,6 +32,8 @@ from bot.handlers.tools import (
     hora_command,
     boletim_command,
     cotacao_command,
+    rota_command,
+    onde_command,
 )
 from bot.services.groq_service import GroqService
 from bot.services.tavily_service import TavilyService
@@ -71,6 +73,12 @@ async def post_init(application) -> None:
     from bot.config import FINEXLY_API_KEY
     finexly = FinexlyService(api_key=FINEXLY_API_KEY)
     application.bot_data["finexly"] = finexly
+
+    # Serviço Google Maps (localização e rotas)
+    from bot.services.google_maps_service import GoogleMapsService
+    from bot.config import GOOGLE_MAPS_API_KEY
+    google_maps = GoogleMapsService(api_key=GOOGLE_MAPS_API_KEY)
+    application.bot_data["google_maps"] = google_maps
 
     logger.info(f"{BOT_NAME} inicializado com sucesso!")
     logger.info(f"Modelo: {GROQ_MODEL}")
@@ -240,10 +248,13 @@ def main() -> None:
     app.add_handler(CommandHandler("olhardigital", olhardigital_command))
     app.add_handler(CommandHandler("boletim", boletim_command))
     app.add_handler(CommandHandler("cotacao", cotacao_command))
+    app.add_handler(CommandHandler("rota", rota_command))
+    app.add_handler(CommandHandler("onde", onde_command))
     app.add_handler(CommandHandler("hora", hora_command))
     app.add_handler(CommandHandler("data", hora_command))
 
     # ── Registra handlers de mensagens ──
+    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 

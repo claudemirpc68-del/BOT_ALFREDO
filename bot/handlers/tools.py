@@ -9,6 +9,7 @@ Handlers para ferramentas especializadas:
 """
 
 import logging
+import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -460,11 +461,22 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     temas = data["temas"]
     groq = context.application.bot_data["groq"]
     tavily = context.application.bot_data["tavily"]
+    db = context.application.bot_data["db"]
 
     logger.info(f"Disparando resumo diário de notícias para o chat {chat_id}. Temas: {temas}")
 
     try:
-        termos = [t.strip() for t in temas.split() if t.strip()]
+        viagem_text = ""
+        if "|" in temas:
+            partes_temas = temas.split("|")
+            temas_noticias = partes_temas[0].strip()
+            for parte in partes_temas[1:]:
+                if "viagem:" in parte.lower():
+                    viagem_text = parte.lower().replace("viagem:", "").strip()
+        else:
+            temas_noticias = temas
+
+        termos = [t.strip() for t in temas_noticias.split() if t.strip()]
         if not termos:
             termos = ["Brasil", "Mundo"]
 
@@ -478,11 +490,39 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             except Exception as ex:
                 logger.error(f"Erro ao buscar notícias do tema {termo}: {ex}")
 
+        # Busca trânsito se configurado
+        if viagem_text:
+            maps = context.application.bot_data.get("google_maps")
+            if maps and " ate " in viagem_text.lower():
+                partes_rota = re.split(r'\s+ate\s+', viagem_text, flags=re.IGNORECASE)
+                if len(partes_rota) == 2:
+                    origem = partes_rota[0].strip()
+                    destino = partes_rota[1].strip()
+                    
+                    if origem.lower() in ["minha localizacao", "minha localização", "aqui"]:
+                        user_lat, user_lng = await db.get_user_location(data["user_id"])
+                        if user_lat is not None and user_lng is not None:
+                            origem = f"{user_lat},{user_lng}"
+                    
+                    matriz = await maps.get_distance_matrix(origem, destino)
+                    if matriz:
+                        contexto_pesquisa += (
+                            f"\n--- Tempo de Viagem e Trânsito (Google Maps) ---\n"
+                            f"Origem: {origem}\n"
+                            f"Destino: {destino}\n"
+                            f"Distância: {matriz['distance']}\n"
+                            f"Tempo estimado: {matriz['duration']}\n"
+                            f"Tempo sob trânsito atual: {matriz['duration_in_traffic']}\n"
+                        )
+
         if not contexto_pesquisa.strip():
             contexto_pesquisa = "Não foi possível obter notícias recentes dos servidores de busca."
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
+        
+        if viagem_text:
+            prompt += "\n- Caso haja informações de Tempo de Viagem e Trânsito no contexto, inclua uma seção dedicada apresentando a distância, o tempo estimado e o trânsito atual de forma elegante."
 
         from datetime import datetime, timezone, timedelta
         try:
@@ -503,7 +543,7 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                 "content": (
                     f"Elabore o resumo diário de notícias para o usuário.\n\n"
                     f"Temas solicitados pelo usuário: {', '.join(termos)}\n\n"
-                    f"Contexto das notícias encontradas na internet:\n{contexto_pesquisa}\n\n"
+                    f"Contexto das notícias e rotas encontradas:\n{contexto_pesquisa}\n\n"
                     "Formate o resumo final de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
                 )
             }
@@ -1006,6 +1046,120 @@ async def hora_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"⏰ `{data_formatada}`",
         parse_mode="Markdown"
     )
+
+
+# ── /rota ─────────────────────────────────────────────────────
+
+async def rota_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Consulta a melhor rota e direções passo a passo entre dois locais."""
+    args = context.args or []
+    maps = context.bot_data.get("google_maps")
+    db = context.bot_data.get("db")
+    user_id = update.effective_user.id
+    
+    if not maps:
+        await update.message.reply_text("❌ Serviço do Google Maps não inicializado.")
+        return
+        
+    texto = " ".join(args)
+    if not texto or " ate " not in texto.lower():
+        await update.message.reply_text(
+            "⚠️ *Como usar o /rota:*\n"
+            "`/rota <origem> ate <destino>`\n\n"
+            "_Exemplo: `/rota Av Paulista 1000 ate Aeroporto de Congonhas`_\n"
+            "_Ou: `/rota aqui ate Shopping Metrô Tatuapé` (se sua localização estiver registrada)_",
+            parse_mode="Markdown"
+        )
+        return
+        
+    await update.message.chat.send_action("typing")
+    
+    partes = re.split(r'\s+ate\s+', texto, flags=re.IGNORECASE)
+    origem = partes[0].strip()
+    destino = partes[1].strip()
+    
+    if origem.lower() in ["minha localizacao", "minha localização", "aqui"]:
+        lat, lng = await db.get_user_location(user_id)
+        if lat is not None and lng is not None:
+            origem = f"{lat},{lng}"
+        else:
+            await update.message.reply_text("❌ Não tenho sua localização salva. Envie sua localização física no Telegram primeiro.")
+            return
+            
+    try:
+        direcoes = await maps.get_directions(origem, destination=destino)
+        if not direcoes:
+            await update.message.reply_text("❌ Não foi possível calcular a rota para os locais informados.")
+            return
+            
+        passos_str = "\n".join([f"{i+1}. {p}" for i, p in enumerate(direcoes["steps"])])
+        
+        msg = (
+            f"🗺️ *Instruções de Rota (Google Maps)*\n\n"
+            f"📍 *Origem:* {direcoes['origin_address']}\n"
+            f"🏁 *Destino:* {direcoes['destination_address']}\n\n"
+            f"📏 *Distância:* `{direcoes['distance']}`\n"
+            f"⏱️ *Tempo Estimado:* `{direcoes['duration']}`\n\n"
+            f"🥾 *Passos Principais:*\n{passos_str}"
+        )
+        
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Erro no comando de rotas: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ocorreu um erro ao calcular as rotas.")
+
+
+# ── /onde ─────────────────────────────────────────────────────
+
+async def onde_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Busca estabelecimentos próximos à localização do usuário."""
+    args = context.args or []
+    maps = context.bot_data.get("google_maps")
+    db = context.bot_data.get("db")
+    user_id = update.effective_user.id
+    
+    if not maps:
+        await update.message.reply_text("❌ Serviço do Google Maps não inicializado.")
+        return
+        
+    busca = " ".join(args)
+    if not busca:
+        await update.message.reply_text(
+            "⚠️ *Como usar o /onde:*\n"
+            "`/onde <tipo de estabelecimento>`\n\n"
+            "_Exemplo: `/onde casa de câmbio`_\n"
+            "_Exemplo: `/onde restaurante japonês`_",
+            parse_mode="Markdown"
+        )
+        return
+        
+    await update.message.chat.send_action("typing")
+    
+    lat, lng = await db.get_user_location(user_id)
+    if lat is None or lng is None:
+        await update.message.reply_text(
+            "❌ Sua localização de referência é desconhecida.\n\n"
+            "Por favor, envie sua localização física pelo Telegram para eu guardá-la e buscar locais próximos a ela."
+        )
+        return
+        
+    try:
+        locais = await maps.search_places(busca, lat, lng)
+        if not locais:
+            await update.message.reply_text(f"🔍 Nenhum local do tipo '{busca}' foi encontrado nas proximidades.")
+            return
+            
+        msg = f"🔍 *Locais Próximos de Você ({busca}):*\n\n"
+        for i, l in enumerate(locais, 1):
+            msg += (
+                f"*{i}. {l['name']}*\n"
+                f"📍 Endereço: _{l['address']}_\n"
+                f"⭐ Nota: `{l['rating']}` ({l['user_ratings_total']} avaliações)\n\n"
+            )
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Erro no comando onde: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ocorreu um erro ao buscar locais.")
 
 
 # ── Utilitários ──────────────────────────────────────────────

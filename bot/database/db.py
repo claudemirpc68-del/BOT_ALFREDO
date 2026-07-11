@@ -38,6 +38,8 @@ class Database:
                 username    TEXT,
                 first_name  TEXT,
                 last_name   TEXT,
+                latitude    REAL,
+                longitude   REAL,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -67,6 +69,19 @@ class Database:
         """)
         await self._db.commit()
 
+        # Migração: adiciona colunas de geolocalização se não existirem
+        try:
+            await self._db.execute("ALTER TABLE users ADD COLUMN latitude REAL")
+            await self._db.commit()
+        except aiosqlite.OperationalError:
+            pass
+            
+        try:
+            await self._db.execute("ALTER TABLE users ADD COLUMN longitude REAL")
+            await self._db.commit()
+        except aiosqlite.OperationalError:
+            pass
+
     # ── Usuários ──────────────────────────────────────────────
 
     async def save_user(
@@ -90,6 +105,29 @@ class Database:
             (user_id, username, first_name, last_name),
         )
         await self._db.commit()
+
+    async def save_user_location(self, user_id: int, latitude: float, longitude: float) -> None:
+        """Salva a última localização geográfica conhecida do usuário."""
+        await self._db.execute(
+            """
+            UPDATE users
+            SET latitude = ?, longitude = ?, last_active = CURRENT_TIMESTAMP
+            WHERE user_id = ?
+            """,
+            (latitude, longitude, user_id),
+        )
+        await self._db.commit()
+
+    async def get_user_location(self, user_id: int) -> tuple[float | None, float | None]:
+        """Retorna as últimas coordenadas (lat, lng) salvas para o usuário."""
+        cursor = await self._db.execute(
+            "SELECT latitude, longitude FROM users WHERE user_id = ?",
+            (user_id,),
+        )
+        row = await cursor.fetchone()
+        if row:
+            return row["latitude"], row["longitude"]
+        return None, None
 
     # ── Mensagens ─────────────────────────────────────────────
 
