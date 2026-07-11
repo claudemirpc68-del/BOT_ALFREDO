@@ -650,8 +650,17 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim: {ex}")
                 manchetes[termo] = "Não foi possível obter notícias recentes dos servidores de busca."
 
+        # Busca cotações via Finexly
+        finexly = context.bot_data.get("finexly")
+        rates = await finexly.get_rates(base="USD", symbols="BRL,EUR") if finexly else {}
+        cotacoes_context = ""
+        if rates:
+            cotacoes_context = f"\n--- Cotação de Moedas (Base USD) ---\nUSD/BRL: {rates.get('BRL')}\nUSD/EUR: {rates.get('EUR')}\n"
+
         # Combina os resultados
         contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
+        if cotacoes_context:
+            contexto_pesquisa += cotacoes_context
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
@@ -674,9 +683,9 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "role": "user",
                 "content": (
                     "Elabore o Boletim de Notícias de hoje.\n\n"
-                    "Temas fixos: Brasil e Mundo\n\n"
-                    f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
-                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                    "Temas fixos: Brasil, Mundo e Mercado Financeiro (cotações USD/BRL e USD/EUR)\n\n"
+                    f"Contexto das últimas manchetes e mercado financeiro:\n{contexto_pesquisa}\n\n"
+                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando os destaques de notícias e os dados de câmbio de forma harmoniosa."
                 )
             }
         ]
@@ -793,7 +802,17 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
                 logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim matinal: {ex}")
                 manchetes[termo] = "Não foi possível obter notícias recentes dos servidores de busca."
 
+        # Busca cotações via Finexly
+        finexly = context.application.bot_data.get("finexly")
+        rates = await finexly.get_rates(base="USD", symbols="BRL,EUR") if finexly else {}
+        cotacoes_context = ""
+        if rates:
+            cotacoes_context = f"\n--- Cotação de Moedas (Base USD) ---\nUSD/BRL: {rates.get('BRL')}\nUSD/EUR: {rates.get('EUR')}\n"
+
+        # Combina os resultados
         contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
+        if cotacoes_context:
+            contexto_pesquisa += cotacoes_context
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
@@ -816,9 +835,9 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
                 "role": "user",
                 "content": (
                     "Elabore o Boletim de Notícias Matinal de hoje.\n\n"
-                    "Temas fixos: Brasil e Mundo\n\n"
-                    f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
-                    "Gere um Boletim de Notícias elegante, focado em começar o dia bem informado, formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                    "Temas fixos: Brasil, Mundo e Mercado Financeiro (cotações USD/BRL e USD/EUR)\n\n"
+                    f"Contexto das últimas manchetes e mercado financeiro:\n{contexto_pesquisa}\n\n"
+                    "Gere um Boletim de Notícias elegante, focado em começar o dia bem informado, formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando notícias e câmbio."
                 )
             }
         ]
@@ -919,6 +938,47 @@ async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             "❌ Ocorreu um erro ao buscar notícias do Olhar Digital. Tente novamente em instantes."
         )
+
+
+# ── /cotacao ──────────────────────────────────────────────────
+
+async def cotacao_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Consulta taxas de câmbio em tempo real via Finexly API."""
+    finexly = context.bot_data.get("finexly")
+    if not finexly:
+        await update.message.reply_text("❌ Serviço de cotações não inicializado.")
+        return
+
+    await update.message.chat.send_action("typing")
+
+    rates = await finexly.get_rates(base="USD", symbols="BRL,EUR")
+    if not rates:
+        await update.message.reply_text(
+            "⚠️ Não foi possível obter as cotações de moedas no momento. Tente novamente mais tarde."
+        )
+        return
+
+    usd_brl = rates.get("BRL")
+    usd_eur = rates.get("EUR")
+
+    try:
+        usd_brl_str = f"R$ {float(usd_brl):.4f}"
+    except Exception:
+        usd_brl_str = str(usd_brl)
+
+    try:
+        usd_eur_str = f"€ {float(usd_eur):.4f}"
+    except Exception:
+        usd_eur_str = str(usd_eur)
+
+    msg = (
+        "💱 *Cotações de Moedas (Base: USD)*\n\n"
+        f"💵 *Dólar Comercial (USD/BRL):* `{usd_brl_str}`\n"
+        f"💶 *Dólar para Euro (USD/EUR):* `{usd_eur_str}`\n\n"
+        "📈 _Valores obtidos em tempo real via Finexly API._"
+    )
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 
 # ── /hora ─────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+FINEXLY_API_KEY: str = os.getenv("FINEXLY_API_KEY", "")
 
 # --- Configurações do Bot ---
 GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")

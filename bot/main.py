@@ -31,6 +31,7 @@ from bot.handlers.tools import (
     instagram_command,
     hora_command,
     boletim_command,
+    cotacao_command,
 )
 from bot.services.groq_service import GroqService
 from bot.services.tavily_service import TavilyService
@@ -64,6 +65,12 @@ async def post_init(application) -> None:
     # Serviço Tavily (pesquisa na internet)
     tavily = TavilyService(api_key=TAVILY_API_KEY)
     application.bot_data["tavily"] = tavily
+
+    # Serviço Finexly (cotação de moedas)
+    from bot.services.finexly_service import FinexlyService
+    from bot.config import FINEXLY_API_KEY
+    finexly = FinexlyService(api_key=FINEXLY_API_KEY)
+    application.bot_data["finexly"] = finexly
 
     logger.info(f"{BOT_NAME} inicializado com sucesso!")
     logger.info(f"Modelo: {GROQ_MODEL}")
@@ -232,6 +239,7 @@ def main() -> None:
     app.add_handler(CommandHandler("lembrete_cancelar", lembrete_cancelar_command))
     app.add_handler(CommandHandler("olhardigital", olhardigital_command))
     app.add_handler(CommandHandler("boletim", boletim_command))
+    app.add_handler(CommandHandler("cotacao", cotacao_command))
     app.add_handler(CommandHandler("hora", hora_command))
     app.add_handler(CommandHandler("data", hora_command))
 
