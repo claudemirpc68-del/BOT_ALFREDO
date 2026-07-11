@@ -136,13 +136,25 @@ async def post_init(application) -> None:
     except Exception as e:
         logger.error(f"Erro ao restaurar lembretes na inicialização: {e}")
 
-    # Agendamento do Boletim Diário Automático (19h00)
+    # Agendamentos de Boletins Diários Automáticos
     try:
-        from bot.handlers.tools import _daily_boletim_job
+        from bot.handlers.tools import _daily_boletim_job, _daily_boletim_job_matinal
         from datetime import time
-        trigger_time_19h = time(19, 0, tzinfo=tz)
         
-        # Remove job anterior se já existir para evitar duplicidade
+        # 1. Boletim Matinal (06h30)
+        trigger_time_06h30 = time(6, 30, tzinfo=tz)
+        for job in application.job_queue.get_jobs_by_name("boletim_diario_06h30"):
+            job.schedule_removal()
+            
+        application.job_queue.run_daily(
+            _daily_boletim_job_matinal,
+            time=trigger_time_06h30,
+            name="boletim_diario_06h30"
+        )
+        logger.info("Agendamento do Boletim Diário Automático Matinal (06h30) configurado com sucesso.")
+        
+        # 2. Boletim Noturno (19h00)
+        trigger_time_19h = time(19, 0, tzinfo=tz)
         for job in application.job_queue.get_jobs_by_name("boletim_diario_19h"):
             job.schedule_removal()
             
@@ -151,9 +163,10 @@ async def post_init(application) -> None:
             time=trigger_time_19h,
             name="boletim_diario_19h"
         )
-        logger.info("Agendamento do Boletim Diário Automático (19h00) configurado com sucesso.")
+        logger.info("Agendamento do Boletim Diário Automático Noturno (19h00) configurado com sucesso.")
+        
     except Exception as ex:
-        logger.error(f"Erro ao agendar Boletim Diário das 19h: {ex}")
+        logger.error(f"Erro ao agendar Boletins Diários: {ex}")
 
 
 async def post_shutdown(application) -> None:

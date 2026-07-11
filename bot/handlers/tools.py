@@ -434,6 +434,25 @@ async def _reminder_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Erro ao deletar lembrete único do banco pós-disparo: {e}")
 
 
+async def _safe_send_message(bot, chat_id: int, text: str) -> None:
+    """Envia uma mensagem no Telegram com Markdown, e faz fallback para texto puro se houver erro de parsing."""
+    try:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.warning(f"Erro ao enviar mensagem com Markdown para o chat {chat_id}: {e}. Tentando enviar como texto puro...")
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text
+            )
+        except Exception as e_inner:
+            logger.error(f"Erro crítico ao enviar mensagem como texto puro para o chat {chat_id}: {e_inner}")
+
+
 async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Callback diário que busca notícias, resume e envia ao usuário."""
     data = context.job.data
@@ -499,11 +518,7 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o resumo das notícias de hoje."
 
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=texto_resumo,
-            parse_mode="Markdown"
-        )
+        await _safe_send_message(context.bot, chat_id, texto_resumo)
     except Exception as e:
         logger.error(f"Erro na execução do callback de notícias diárias: {e}", exc_info=True)
         try:
@@ -674,7 +689,11 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
 
         texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias de hoje."
-        await update.message.reply_text(texto_resumo, parse_mode="Markdown")
+        try:
+            await update.message.reply_text(texto_resumo, parse_mode="Markdown")
+        except Exception as markdown_err:
+            logger.warning(f"Erro ao enviar boletim interativo com Markdown: {markdown_err}. Enviando texto puro.")
+            await update.message.reply_text(texto_resumo)
 
     except Exception as e:
         logger.error(f"Erro ao gerar boletim de notícias: {e}", exc_info=True)
@@ -746,16 +765,85 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         for user_id in usuarios:
             try:
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=texto_resumo,
-                    parse_mode="Markdown"
-                )
+                await _safe_send_message(context.bot, user_id, texto_resumo)
             except Exception as send_err:
                 logger.warning(f"Não foi possível enviar boletim diário para o usuário {user_id}: {send_err}")
 
     except Exception as e:
         logger.error(f"Erro ao processar boletim de notícias diário automático: {e}", exc_info=True)
+
+
+async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback diário executado automaticamente às 06:30 para enviar o boletim matinal a todos os usuários."""
+    db = context.application.bot_data["db"]
+    groq = context.application.bot_data["groq"]
+    tavily = context.application.bot_data["tavily"]
+
+    logger.info("Disparando Boletim Diário Automático Matinal de Notícias (06h30).")
+
+    try:
+        # Busca notícias para Brasil e Mundo
+        manchetes = {}
+        for termo in ["Brasil", "Mundo"]:
+            query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
+            try:
+                busca = await tavily.search(query)
+                manchetes[termo] = tavily.extract_context(busca)
+            except Exception as ex:
+                logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim matinal: {ex}")
+                manchetes[termo] = "Não foi possível obter notícias recentes dos servidores de busca."
+
+        contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
+
+        from bot.prompts.skills import build_prompt
+        prompt = build_prompt("news_digest")
+
+        from datetime import datetime, timezone, timedelta
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("America/Sao_Paulo")
+            agora_dt = datetime.now(tz)
+        except Exception:
+            tz = timezone(timedelta(hours=-3))
+            agora_dt = datetime.now(tz)
+
+        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
+
+        messages = [
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": (
+                    "Elabore o Boletim de Notícias Matinal de hoje.\n\n"
+                    "Temas fixos: Brasil e Mundo\n\n"
+                    f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
+                    "Gere um Boletim de Notícias elegante, focado em começar o dia bem informado, formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                )
+            }
+        ]
+
+        response = await groq.client.chat.completions.create(
+            model=groq.model,
+            messages=messages,
+            temperature=0.6,
+            max_tokens=2048
+        )
+
+        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias matinal de hoje."
+
+        # Obtém todos os usuários cadastrados no banco para enviar o boletim
+        usuarios = await db.get_active_users()
+        logger.info(f"Enviando Boletim Matinal Automático para {len(usuarios)} usuários.")
+
+        for user_id in usuarios:
+            try:
+                await _safe_send_message(context.bot, user_id, texto_resumo)
+            except Exception as send_err:
+                logger.warning(f"Não foi possível enviar boletim matinal para o usuário {user_id}: {send_err}")
+
+    except Exception as e:
+        logger.error(f"Erro ao processar boletim de notícias matinal diário automático: {e}", exc_info=True)
 
 
 # ── /olhardigital ─────────────────────────────────────────────
