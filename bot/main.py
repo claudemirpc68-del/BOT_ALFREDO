@@ -28,7 +28,6 @@ from bot.handlers.tools import (
     traduzir_command,
     linkedin_command,
     olhardigital_command,
-    instagram_command,
     hora_command,
     boletim_command,
     cotacao_command,
@@ -240,7 +239,6 @@ def main() -> None:
     app.add_handler(CommandHandler("traduzir", traduzir_command))
     app.add_handler(CommandHandler("codigo", codigo_command))
     app.add_handler(CommandHandler("linkedin", linkedin_command))
-    app.add_handler(CommandHandler("instagram", instagram_command))
     app.add_handler(CommandHandler("pesquisar", pesquisar_command))
     app.add_handler(CommandHandler("lembrete", lembrete_command))
     app.add_handler(CommandHandler("lembretes", lembretes_command))

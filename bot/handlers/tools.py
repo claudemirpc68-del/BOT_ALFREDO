@@ -165,32 +165,6 @@ async def linkedin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await send_long_message(update, response)
 
 
-# ── /instagram ────────────────────────────────────────────────
-
-async def instagram_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Gera uma ideia de post com legenda e hashtags otimizadas para o Instagram."""
-    groq: GroqService = context.bot_data["groq"]
-
-    text = _get_text(update, context)
-
-    if not text:
-        await update.message.reply_text(
-            "📸 *Como usar o /instagram:*\n\n"
-            "• `/instagram <assunto ou ideia do post>`\n\n"
-            "*Exemplos:*\n"
-            "• `/instagram dicas de segurança da informação para leigos`\n"
-            "• `/instagram a rotina de um programador em home office`\n"
-            "• `/instagram 5 extensões indispensáveis do VS Code`",
-            parse_mode="Markdown",
-        )
-        return
-
-    await update.message.chat.send_action("typing")
-    response = await groq.generate_instagram_post(text)
-
-    await send_long_message(update, response)
-
-
 # ── /pesquisar ────────────────────────────────────────────────
 
 async def pesquisar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -251,40 +251,6 @@ class GroqService:
             logger.error(f"Erro no Groq LinkedIn Post: {e}", exc_info=True)
             return self._format_error(e)
 
-    async def generate_instagram_post(self, topic: str) -> str:
-        """
-        Gera uma ideia de post com legenda otimizada para o Instagram.
-        Usa: persona + skill "instagram"
-        """
-        try:
-            prompt = build_prompt("instagram")
-            user_prompt = (
-                f"Crie um post otimizado para o Instagram sobre o seguinte tema:\n\n{topic}\n\n"
-                "Siga à risca a estrutura:\n"
-                "1. Ideia Visual: Descreva sugestões visuais (ex: carrossel, reels ou foto única).\n"
-                "2. Gancho Inicial: Uma primeira linha impactante.\n"
-                "3. Legenda Completa: Texto do post bem formatado com quebras de linha limpas e emojis.\n"
-                "4. CTA: Uma chamada para ação direta.\n"
-                "5. Hashtags: Liste hashtags altamente relevantes de tecnologia, marketing e sobre o tema."
-            )
-
-            messages = [
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.8,
-                max_tokens=2048,
-            )
-            return response.choices[0].message.content or "🤔 Não consegui criar o post para o Instagram."
-
-        except Exception as e:
-            logger.error(f"Erro no Groq Instagram Post: {e}", exc_info=True)
-            return self._format_error(e)
-
     @staticmethod
     def _format_error(error: Exception) -> str:
         """Formata mensagem de erro amigável para o usuário."""

@@ -23,7 +23,6 @@ Sou seu assistente pessoal inteligente, alimentado por IA de última geração.
 💻  Gerar código — `/codigo`
 🔍  Pesquisar na internet — `/pesquisar`
 🚀  Posts virais para o LinkedIn — `/linkedin`
-📸  Posts otimizados para o Instagram — `/instagram`
 ⏰  Criar lembretes — `/lembrete`
 
 ⚙️ *Comandos úteis:*
@@ -47,7 +46,6 @@ HELP_MESSAGE = f"""
 • `/traduzir <idioma> <texto>` — Traduz um texto
 • `/codigo <descrição>` — Gera código
 • `/linkedin <ideia>` — Cria um post viral para o LinkedIn
-• `/instagram <ideia>` — Cria um post para o Instagram (ideias de foto + legenda)
 • `/pesquisar <termo>` — Pesquisa na internet em tempo real
 • `/lembrete <minutos> <mensagem>` — Cria lembrete
 
