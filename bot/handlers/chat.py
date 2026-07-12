@@ -88,6 +88,30 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # Registra/atualiza o usuário
     await db.save_user(user.id, user.username, user.first_name, user.last_name)
 
+    # 0. Detecção de intenção de salvar localização/CEP por texto
+    menciona_salvar = any(w in message_text.lower() for w in ["salve", "salvar", "registre", "registrar", "registrado", "gravar", "grave", "meu cep", "minha residência", "minha residencia", "minha casa"])
+    cep_match = re.search(r'\b\d{5}-?\d{3}\b', message_text)
+    
+    if menciona_salvar and cep_match:
+        cep = cep_match.group(0)
+        maps = context.bot_data.get("google_maps")
+        if maps:
+            # Geocodifica o CEP para obter as coordenadas reais
+            geo_coord = await maps.geocode(f"{cep}, Brasil")
+            if geo_coord:
+                await db.save_user_location(user.id, geo_coord["lat"], geo_coord["lng"])
+                logger.info(f"Localização textual (CEP {cep}) registrada para o usuário {user.id}: {geo_coord['lat']}, {geo_coord['lng']}")
+                await update.message.reply_text(
+                    f"📍 *Localização registrada com sucesso!*\n\n"
+                    f"O CEP `{cep}` ({geo_coord['formatted_address']}) foi gravado como sua residência/localização de referência. "
+                    f"Sempre que você me pedir locais próximos ou rotas, usarei este ponto de partida! 😊",
+                    parse_mode="Markdown"
+                )
+                # Salva no histórico da conversa e encerra
+                await db.save_message(user.id, "user", message_text)
+                await db.save_message(user.id, "model", f"Localização registrada com sucesso: CEP {cep}")
+                return
+
     # Mostra indicador de "digitando..."
     await update.message.chat.send_action("typing")
 
