@@ -62,7 +62,7 @@ class GoogleMapsService:
 
     async def search_places(self, query: str, lat: float = None, lng: float = None, radius: int = 8000) -> list:
         """
-        Busca estabelecimentos ou pontos de interesse usando a Places Text Search API.
+        Busca estabelecimentos ou pontos de interesse usando a nova Places API (New) Text Search.
         
         Args:
             query: Termo de busca (ex: "casa de câmbio").
@@ -77,39 +77,47 @@ class GoogleMapsService:
             logger.warning("Google Maps API Key não configurada.")
             return []
 
-        url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-        params = {
-            "query": query,
-            "key": self.api_key,
-            "language": "pt-BR"
+        url = "https://places.googleapis.com/v1/places:searchText"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": self.api_key,
+            "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.location"
+        }
+
+        body = {
+            "textQuery": query,
+            "languageCode": "pt-BR"
         }
 
         if lat is not None and lng is not None:
-            params["location"] = f"{lat},{lng}"
-            params["radius"] = str(radius)
+            body["locationBias"] = {
+                "circle": {
+                    "center": {
+                        "latitude": lat,
+                        "longitude": lng
+                    },
+                    "radius": float(radius)
+                }
+            }
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url, params=params)
+                response = await client.post(url, headers=headers, json=body)
                 if response.status_code == 200:
                     data = response.json()
-                    if data.get("status") in ["OK", "ZERO_RESULTS"]:
-                        places = []
-                        for item in data.get("results", [])[:5]: # Top 5 locais
-                            places.append({
-                                "name": item.get("name"),
-                                "address": item.get("formatted_address"),
-                                "rating": item.get("rating", "N/A"),
-                                "user_ratings_total": item.get("user_ratings_total", 0),
-                                "latitude": item["geometry"]["location"]["lat"],
-                                "longitude": item["geometry"]["location"]["lng"]
-                            })
-                        return places
-                    else:
-                        logger.warning(f"Places API retornou status: {data.get('status')}")
-                        return []
+                    places = []
+                    for item in data.get("places", [])[:5]: # Top 5 locais
+                        places.append({
+                            "name": item.get("displayName", {}).get("text"),
+                            "address": item.get("formattedAddress"),
+                            "rating": item.get("rating", "N/A"),
+                            "user_ratings_total": item.get("userRatingCount", 0),
+                            "latitude": item.get("location", {}).get("latitude"),
+                            "longitude": item.get("location", {}).get("longitude")
+                        })
+                    return places
                 else:
-                    logger.error(f"Erro na Places API: Status {response.status_code}")
+                    logger.error(f"Erro na Places API (New): Status {response.status_code} - {response.text}")
                     return []
         except Exception as e:
             logger.error(f"Exceção no search_places: {e}", exc_info=True)

@@ -26,7 +26,7 @@ Responda EXCLUSIVAMENTE com um objeto JSON válido, sem tags markdown (como ```j
 O JSON deve ter exatamente estas chaves:
 {
   "tipo": "rota" | "busca_local" | "distancia" | "nenhum",
-  "origem": "endereço de origem se mencionado, senão null",
+  "origem": "endereço de origem de uma rota se mencionado. Se for busca_local, coloque aqui o ponto de referência, cidade ou região mencionado para a busca (ex: 'Suzano, SP'), senão null",
   "destino": "endereço de destino ou rota de destino, senão null",
   "busca": "termo do local que o usuário quer achar, se busca_local, senão null"
 }
