@@ -152,8 +152,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                         
                 if search_lat is None or search_lng is None:
                     geo_context = (
-                        "\n[SISTEMA: A localização do usuário é desconhecida. "
-                        "Avise que ele precisa enviar a localização física pelo Telegram ou especificar o local (ex: 'perto de tal lugar').]"
+                        "\n[SISTEMA: Você possui integração com a API do Google Maps, mas a localização do usuário é desconhecida no momento. "
+                        "Explique de forma amigável que você tem integração com o Google Maps, mas precisa que ele envie a localização física "
+                        "pelo Telegram ou especifique o local/cidade (ex: 'em Suzano, SP' ou 'perto do CEP 08625-572') para que você possa buscar.]"
                     )
                 elif busca:
                     locais = await maps.search_places(busca, search_lat, search_lng)

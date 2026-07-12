@@ -113,6 +113,38 @@ class TestGoogleMapsGeocode:
             result = await service.geocode("Endereço")
             assert result is None
 
+    @pytest.mark.asyncio
+    async def test_geocode_cep_reordering_and_cleaning(self):
+        """Testa se o método geocode limpa prefixos 'EP'/'CEP' e move o CEP para o fim."""
+        service = GoogleMapsService(api_key="mock_key")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={
+            "status": "OK",
+            "results": [{
+                "geometry": {
+                    "location": {"lat": -23.642219, "lng": -46.317011}
+                },
+                "formatted_address": "R. Jandira Colloniezi Crepaldi - Palmeiras de São Paulo, Suzano - SP, Brasil"
+            }]
+        })
+
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        # Teste com prefixo "EP" e CEP no início
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service.geocode("EP 08625-572 RUA JANDIRA COLLONIEZE CREPALDI")
+            assert result is not None
+            # Verifica se chamou a API do Google com o endereço limpo e reordenado
+            mock_client.get.assert_called_with(
+                "https://maps.googleapis.com/maps/api/geocode/json",
+                params={"address": "RUA JANDIRA COLLONIEZE CREPALDI, 08625-572", "key": "mock_key", "language": "pt-BR"}
+            )
+
 
 class TestGoogleMapsSearchPlaces:
     """Testes para o método search_places."""

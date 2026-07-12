@@ -30,9 +30,29 @@ class GoogleMapsService:
             logger.warning("Google Maps API Key não configurada.")
             return None
 
+        # Limpeza e normalização do endereço para CEPs brasileiros
+        import re
+        address_clean = address.strip()
+        
+        # Remove prefixo "CEP", "EP", etc. no início de forma case-insensitive
+        address_clean = re.sub(r'(?i)^\b(cep|ep)\b:?', '', address_clean).strip()
+        
+        # Se começar com um CEP (5 ou 8 dígitos, com ou sem hífen), move o CEP para o final do endereço
+        match = re.match(r'^(\d{5}-?\d{3})\s+(.+)$', address_clean)
+        if match:
+            cep = match.group(1)
+            resto = match.group(2)
+            address_clean = f"{resto}, {cep}"
+        
+        # Se for um CEP puro (5 ou 8 dígitos) -> adiciona ", Brasil" e formata se necessário
+        if re.match(r'^\d{8}$', address_clean):
+            address_clean = f"{address_clean[:5]}-{address_clean[5:]}, Brasil"
+        elif re.match(r'^\d{5}-\d{3}$', address_clean):
+            address_clean = f"{address_clean}, Brasil"
+
         url = "https://maps.googleapis.com/maps/api/geocode/json"
         params = {
-            "address": address,
+            "address": address_clean,
             "key": self.api_key,
             "language": "pt-BR"
         }
