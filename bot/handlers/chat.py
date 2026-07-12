@@ -88,11 +88,66 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # Registra/atualiza o usuário
     await db.save_user(user.id, user.username, user.first_name, user.last_name)
 
-    # 0. Detecção de intenção de salvar localização/CEP por texto
-    menciona_salvar = any(w in message_text.lower() for w in ["salve", "salvar", "registre", "registrar", "registrado", "gravar", "grave", "meu cep", "minha residência", "minha residencia", "minha casa"])
+    # 0. Detecção de intenção de salvar localização/CEP ou link do Maps por texto
+    menciona_salvar = any(w in message_text.lower() for w in ["salve", "salvar", "registre", "registrar", "registrado", "gravar", "grave", "meu cep", "minha residência", "minha residencia", "minha casa", "estabelecimento", "localização", "localizacao"])
     cep_match = re.search(r'\b\d{5}-?\d{3}\b', message_text)
+    maps_url_match = re.search(r'https?://(?:maps\.app\.goo\.gl|goo\.gl/maps|www\.google\.com/maps)\S+', message_text)
     
-    if menciona_salvar and cep_match:
+    if menciona_salvar and maps_url_match:
+        url = maps_url_match.group(0)
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.get(url)
+                url_str = str(response.url)
+                
+                lat, lng = None, None
+                
+                # 1. Tenta extrair maps/search/lat,+lng ou maps/place/lat,+lng
+                match_search = re.search(r'/maps/(?:search|place)/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)', url_str)
+                if match_search:
+                    lat, lng = float(match_search.group(1)), float(match_search.group(2))
+                else:
+                    # 2. Tenta extrair o padrão @lat,lng
+                    match_at = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', url_str)
+                    if match_at:
+                        lat, lng = float(match_at.group(1)), float(match_at.group(2))
+                    else:
+                        # 3. Tenta extrair de parâmetros query
+                        match_query = re.search(r'[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)', url_str)
+                        if match_query:
+                            lat, lng = float(match_query.group(1)), float(match_query.group(2))
+                        else:
+                            # 4. Tenta no HTML (staticmap)
+                            match_static = re.search(r'staticmap\?center=(-?\d+\.\d+)%2C(-?\d+\.\d+)', response.text)
+                            if match_static:
+                                lat, lng = float(match_static.group(1)), float(match_static.group(2))
+                                
+                if lat is not None and lng is not None:
+                    await db.save_user_location(user.id, lat, lng)
+                    logger.info(f"Localização por Link do Maps registrada para o usuário {user.id}: {lat}, {lng}")
+                    
+                    # Tenta obter endereço em formato de texto para confirmação
+                    endereco_amigavel = "Seu estabelecimento"
+                    maps = context.bot_data.get("google_maps")
+                    if maps:
+                        geo_coord = await maps.geocode(f"{lat},{lng}")
+                        if geo_coord:
+                            endereco_amigavel = geo_coord["formatted_address"]
+                            
+                    await update.message.reply_text(
+                        f"📍 *Localização registrada com sucesso!*\n\n"
+                        f"O link do seu estabelecimento ({endereco_amigavel}) foi gravado como sua localização de referência. "
+                        f"Sempre que você me pedir locais próximos ou rotas, usarei este ponto de partida! 😊",
+                        parse_mode="Markdown"
+                    )
+                    await db.save_message(user.id, "user", message_text)
+                    await db.save_message(user.id, "model", f"Localização registrada com sucesso via Link do Maps: {lat},{lng}")
+                    return
+        except Exception as e:
+            logger.error(f"Erro ao resolver link do Maps no chat: {e}", exc_info=True)
+
+    elif menciona_salvar and cep_match:
         cep = cep_match.group(0)
         maps = context.bot_data.get("google_maps")
         if maps:
