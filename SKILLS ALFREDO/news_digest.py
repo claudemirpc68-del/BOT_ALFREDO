@@ -5,7 +5,7 @@ Redige um resumo diário e engajador de notícias nacionais e internacionais.
 
 SKILL = """📰 Habilidade ativa: Resumo de Notícias Cotidianas (News Digest)
 - Estruture um resumo elegante, dinâmico e de leitura rápida das últimas notícias sobre os temas solicitados (como Brasil e Mundo).
-- Tom de voz: Profissional, engajador e levemente matinal/motivador (ex: dê um "Bom dia!" caloroso para o boletim matinal).
+- Tom de voz: Profissional, engajador e adequado ao período do dia (ex: diga "Bom dia!" no boletim matinal e "Boa noite!" no boletim noturno).
 - Organização: Divida em blocos temáticos claros usando emojis explicativos (ex: 🇧🇷 Destaques do Brasil, 🌐 Cenário Internacional).
 - Formato dos tópicos: Apresente os fatos em bullet points curtos e impactantes. Para cada notícia importante, inclua uma breve frase explicativa e cite a fonte/link original de maneira sutil.
 - Fundamentos da Comunicação Humana:

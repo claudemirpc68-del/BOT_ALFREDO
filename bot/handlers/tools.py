@@ -691,6 +691,8 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
         prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
 
+        saudacao = "Bom dia!" if 5 <= agora_dt.hour < 12 else "Boa tarde!" if 12 <= agora_dt.hour < 18 else "Boa noite!"
+
         messages = [
             {"role": "system", "content": prompt},
             {
@@ -699,7 +701,7 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "Elabore o Boletim de Notícias de hoje.\n\n"
                     "Temas fixos: Brasil, Mundo e Mercado Financeiro (cotações USD/BRL e USD/EUR)\n\n"
                     f"Contexto das últimas manchetes e mercado financeiro:\n{contexto_pesquisa}\n\n"
-                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando os destaques de notícias e os dados de câmbio de forma harmoniosa."
+                    f"Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando os destaques de notícias e os dados de câmbio de forma harmoniosa. Como a hora atual de Brasília é {agora_dt.strftime('%H:%M')}, saúde o usuário com '{saudacao}' no início do boletim."
                 )
             }
         ]
@@ -768,7 +770,7 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     "Elabore o Boletim de Notícias de hoje.\n\n"
                     "Temas fixos: Brasil e Mundo\n\n"
                     f"Contexto das últimas manchetes encontradas nos portais confiáveis:\n{contexto_pesquisa}\n\n"
-                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest)."
+                    "Gere um Boletim de Notícias elegante e formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest). Como este é o boletim noturno (19h00), saúde o usuário com um 'Boa noite!' caloroso no início do boletim."
                 )
             }
         ]
@@ -851,7 +853,7 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
                     "Elabore o Boletim de Notícias Matinal de hoje.\n\n"
                     "Temas fixos: Brasil, Mundo e Mercado Financeiro (cotações USD/BRL e USD/EUR)\n\n"
                     f"Contexto das últimas manchetes e mercado financeiro:\n{contexto_pesquisa}\n\n"
-                    "Gere um Boletim de Notícias elegante, focado em começar o dia bem informado, formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando notícias e câmbio."
+                    "Gere um Boletim de Notícias elegante, focado em começar o dia bem informado, formatado de acordo com a sua Habilidade de Resumo de Notícias Cotidianas (News Digest), integrando notícias e câmbio. Como este é o boletim matinal (06h30), saúde o usuário com um 'Bom dia!' caloroso no início do boletim."
                 )
             }
         ]

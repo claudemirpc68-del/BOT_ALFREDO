@@ -149,7 +149,7 @@ class TestHandlerMessages:
     def test_help_message_contains_all_commands(self):
         """Verifica que o help lista todos os comandos."""
         from bot.handlers.start import HELP_MESSAGE
-        commands = ["/resumir", "/traduzir", "/codigo", "/linkedin", "/instagram", "/lembrete",
+        commands = ["/resumir", "/traduzir", "/codigo", "/linkedin", "/lembrete",
                     "/nova", "/status", "/help"]
         for cmd in commands:
             assert cmd in HELP_MESSAGE, f"Comando {cmd} ausente no help"
@@ -186,7 +186,7 @@ class TestMainImports:
         from bot.handlers.tools import (
             resumir_command, traduzir_command,
             codigo_command, lembrete_command,
-            linkedin_command, instagram_command,
+            linkedin_command,
         )
 
     def test_import_main(self):

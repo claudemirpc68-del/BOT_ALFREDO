@@ -205,23 +205,6 @@ class TestGroqAPIIntegration:
             result = await service.generate_linkedin_post("Impacto da IA no suporte")
             assert "InteligenciaArtificial" in result
 
-    @pytest.mark.asyncio
-    async def test_generate_instagram_post(self):
-        """Testa função de geração de posts do Instagram."""
-        service = GroqService(api_key="test_key")
-
-        mock_choice = MagicMock()
-        mock_choice.message.content = "Ideia Visual: Carrossel. Legenda: Conteúdo do insta #Instagram"
-        mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-
-        with patch.object(
-            service.client.chat.completions, "create",
-            new_callable=AsyncMock, return_value=mock_response
-        ):
-            result = await service.generate_instagram_post("Dicas de produtividade")
-            assert "Instagram" in result
-
 
     @pytest.mark.asyncio
     async def test_analyze_image(self):

@@ -142,12 +142,7 @@ async def testar_linkedin(groq):
     print("   [OK] Posts de LinkedIn operacional.")
 
 
-async def testar_instagram(groq):
-    print("[TEST] 8. Posts para Instagram (/instagram)...")
-    resposta = await groq.generate_instagram_post("Dica de programacao limpa")
-    print(f"   Post Instagram (primeiras linhas):\n{chr(10).join(resposta.split(chr(10))[:3])}...")
-    assert len(resposta) > 10, "Erro: post do Instagram muito curto."
-    print("   [OK] Posts de Instagram operacional.")
+
 
 
 async def testar_pesquisa(groq, tavily):
@@ -205,8 +200,6 @@ async def rodar_validacao_completa():
         await testar_geracao_codigo(groq)
         print("")
         await testar_linkedin(groq)
-        print("")
-        await testar_instagram(groq)
         print("")
         await testar_pesquisa(groq, tavily)
         print("")

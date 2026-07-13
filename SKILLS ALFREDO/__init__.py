@@ -20,7 +20,6 @@ from code import SKILL as code_skill
 from linkedin import SKILL as linkedin_skill
 from search import SKILL as search_skill
 from olhardigital import SKILL as olhardigital_skill
-from instagram import SKILL as instagram_skill
 from news_digest import SKILL as news_digest_skill
 
 # ── Registro central de skills ───────────────────────────────
@@ -37,7 +36,6 @@ REGISTRY: dict[str, str] = {
     "linkedin": linkedin_skill,
     "search": search_skill,
     "olhardigital": olhardigital_skill,
-    "instagram": instagram_skill,
     "news_digest": news_digest_skill,
 }
 
