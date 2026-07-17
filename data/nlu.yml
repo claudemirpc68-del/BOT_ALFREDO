@@ -27,3 +27,16 @@ nlu:
     - Faça um post profissional pro LinkedIn
     - Me dá um texto de linkedin baseado nisso
     - Escreva um post engajador para o linkedin
+
+- intent: registrar_adesao
+  examples: |
+    - quero cadastrar uma nova adesão
+    - registrar adesão
+    - salvar plano na planilha
+    - cadastrar novo plano
+    - adicionar pessoa na planilha do google
+    - fazer um registro de adesão
+    - registrar plano de saúde
+    - quero salvar um cadastro
+    - cadastrar adesão do cliente
+    - registrar venda de plano

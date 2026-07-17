@@ -5,6 +5,7 @@ intents:
   - request_comments_evaluation
   - request_post_generation
   - buscar_olhardigital_ai
+  - registrar_adesao
 
 slots:
   preferencias:
@@ -15,16 +16,76 @@ slots:
         conditions:
           - active_loop: null
             requested_slot: null
+  nome:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: adesao_form
+            requested_slot: nome
+  cpf:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: adesao_form
+            requested_slot: cpf
+  plano:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: adesao_form
+            requested_slot: plano
+  data_adesao:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: adesao_form
+            requested_slot: data_adesao
+  email:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: adesao_form
+            requested_slot: email
+
+forms:
+  adesao_form:
+    required_slots:
+      - nome
+      - cpf
+      - plano
+      - data_adesao
+      - email
 
 responses:
   utter_greet:
     - text: "Olá! Sou o ALFREDO. Como posso te ajudar hoje?"
+  utter_ask_nome:
+    - text: "Por favor, informe o nome completo do aderente:"
+  utter_ask_cpf:
+    - text: "Qual o CPF do aderente (apenas números ou formatado)?"
+  utter_ask_plano:
+    - text: "Qual o plano desejado (Básico, Intermediário, Premium ou Gold)?"
+  utter_ask_data_adesao:
+    - text: "Qual a data de adesão (formato AAAA-MM-DD)?"
+  utter_ask_email:
+    - text: "E qual o e-mail de contato?"
 
 actions:
   - action_buscar_olhardigital_ai
   - action_extract_topics
   - action_generate_comments
   - action_generate_linkedin_post
+  - action_registrar_adesao
 
 session_config:
   session_expiration_time: 60

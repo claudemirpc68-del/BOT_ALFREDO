@@ -9,3 +9,11 @@ stories:
   - action: action_generate_comments
   - intent: request_post_generation
   - action: action_generate_linkedin_post
+
+- story: fluxo_registro_adesao
+  steps:
+  - intent: registrar_adesao
+  - action: adesao_form
+  - active_loop: adesao_form
+  - active_loop: null
+  - action: action_registrar_adesao
