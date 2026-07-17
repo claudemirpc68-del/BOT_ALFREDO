@@ -50,6 +50,47 @@ O JSON deve ter exatamente estas chaves:
         return {"tipo": "nenhum", "origem": None, "destino": None, "busca": None}
 
 
+async def _detect_adesao_intent(groq: GroqService, text: str) -> dict:
+    """Detecta se o usuário quer registrar uma adesão de plano de saúde na planilha e extrai os dados."""
+    prompt = """Você é um assistente especializado em extrair dados de adesão de plano de saúde.
+Analise a mensagem do usuário e determine se ele quer registrar ou cadastrar uma nova adesão/plano na planilha.
+Extraia os seguintes campos se mencionados:
+- nome (nome completo do aderente)
+- cpf (apenas os números ou formatado)
+- plano (ex: Básico, Intermediário, Premium, Gold)
+- email (e-mail de contato)
+- data_adesao (data mencionada no formato AAAA-MM-DD. Se não mencionada, use null)
+
+Responda EXCLUSIVAMENTE com um objeto JSON válido, sem tags markdown (como ```json ...) ou texto adicional.
+O JSON deve ter exatamente estas chaves:
+{
+  "quer_registrar": true | false,
+  "nome": string | null,
+  "cpf": string | null,
+  "plano": string | null,
+  "email": string | null,
+  "data_adesao": string | null
+}
+"""
+    try:
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": text}
+        ]
+        response = await groq.client.chat.completions.create(
+            model=groq.model,
+            messages=messages,
+            temperature=0.1,
+            max_tokens=256,
+            response_format={"type": "json_object"}
+        )
+        content = response.choices[0].message.content.strip()
+        return json.loads(content)
+    except Exception as e:
+        logger.error(f"Erro ao detectar intenção de adesão: {e}")
+        return {"quer_registrar": False, "nome": None, "cpf": None, "plano": None, "email": None, "data_adesao": None}
+
+
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Processa localizações enviadas fisicamente pelo usuário via Telegram.
@@ -84,6 +125,76 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     groq: GroqService = context.bot_data["groq"]
     user = update.effective_user
     message_text = update.message.text
+
+    # 0. Detecção de intenção de adesão à planilha
+    adesao_data = await _detect_adesao_intent(groq, message_text)
+    if adesao_data.get("quer_registrar"):
+        nome = adesao_data.get("nome")
+        cpf = adesao_data.get("cpf")
+        plano = adesao_data.get("plano")
+        email = adesao_data.get("email")
+        
+        from datetime import datetime, timezone, timedelta
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("America/Sao_Paulo")
+            agora_dt = datetime.now(tz)
+        except Exception:
+            tz = timezone(timedelta(hours=-3))
+            agora_dt = datetime.now(tz)
+        data_adesao = agora_dt.strftime("%Y-%m-%d") if not adesao_data.get("data_adesao") else adesao_data.get("data_adesao")
+
+        campos_faltantes = []
+        if not nome: campos_faltantes.append("Nome Completo")
+        if not cpf: campos_faltantes.append("CPF")
+        if not plano: campos_faltantes.append("Plano (Básico, Intermediário, Premium ou Gold)")
+        if not email: campos_faltantes.append("E-mail")
+
+        if campos_faltantes:
+            await update.message.reply_text(
+                f"📝 *Quase lá!* Para registrar a adesão na planilha, preciso que você me informe estes dados:\n\n"
+                + "\n".join([f"- {c}" for c in campos_faltantes]) + "\n\n"
+                "Por favor, envie uma mensagem informando os dados que faltaram.",
+                parse_mode="Markdown"
+            )
+            return
+
+        await update.message.chat.send_action("typing")
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                webhook_url = "https://adesao.docescakemanias.cloud/adesao"
+                payload = {
+                    "nome": nome,
+                    "cpf": cpf,
+                    "plano": plano,
+                    "data_adesao": data_adesao,
+                    "email": email
+                }
+                res = await client.post(webhook_url, json=payload)
+                if res.status_code == 200:
+                    resposta_msg = (
+                        f"✅ *Adesão registrada com sucesso na planilha!*\n\n"
+                        f"👤 *Aderente:* {nome}\n"
+                        f"💳 *Plano:* {plano}\n"
+                        f"📧 *E-mail:* {email}\n"
+                        f"📅 *Data:* {data_adesao}"
+                    )
+                    await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                    await db.save_message(user.id, "user", message_text)
+                    await db.save_message(user.id, "model", resposta_msg)
+                else:
+                    resposta_msg = f"❌ *Erro ao registrar adesão:* {res.text}"
+                    await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                    await db.save_message(user.id, "user", message_text)
+                    await db.save_message(user.id, "model", resposta_msg)
+        except Exception as ex:
+            logger.error(f"Erro ao disparar webhook de adesão: {ex}")
+            await update.message.reply_text(
+                f"❌ *Erro ao se conectar ao servidor da planilha:* {str(ex)}",
+                parse_mode="Markdown"
+            )
+        return
 
     # Registra/atualiza o usuário
     await db.save_user(user.id, user.username, user.first_name, user.last_name)
