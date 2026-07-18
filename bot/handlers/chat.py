@@ -126,6 +126,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user = update.effective_user
     message_text = update.message.text
 
+    # Registra/atualiza o usuário no banco de dados primeiro (evita erro de chave estrangeira nas mensagens)
+    await db.save_user(user.id, user.username, user.first_name, user.last_name)
+
     # 0. Detecção de intenção de adesão à planilha
     adesao_data = await _detect_adesao_intent(groq, message_text)
     if adesao_data.get("quer_registrar"):
@@ -196,9 +199,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode="HTML"
             )
         return
-
-    # Registra/atualiza o usuário
-    await db.save_user(user.id, user.username, user.first_name, user.last_name)
 
     # 0. Detecção de intenção de salvar localização/CEP ou link do Maps por texto
     menciona_salvar = any(w in message_text.lower() for w in ["salve", "salvar", "registre", "registrar", "registrado", "gravar", "grave", "meu cep", "minha residência", "minha residencia", "minha casa", "estabelecimento", "localização", "localizacao"])
