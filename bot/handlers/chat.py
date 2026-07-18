@@ -152,17 +152,18 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         if campos_faltantes:
             await update.message.reply_text(
-                f"📝 *Quase lá!* Para registrar a adesão na planilha, preciso que você me informe estes dados:\n\n"
-                + "\n".join([f"- {c}" for c in campos_faltantes]) + "\n\n"
+                f"📝 <b>Quase lá!</b> Para registrar a adesão na planilha, preciso que você me informe estes dados:\n\n"
+                + "\n".join([f"• {c}" for c in campos_faltantes]) + "\n\n"
                 "Por favor, envie uma mensagem informando os dados que faltaram.",
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             return
 
         await update.message.chat.send_action("typing")
         import httpx
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            # verify=False ignora erros de certificado SSL autoassinado
+            async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
                 webhook_url = "https://adesao.docescakemanias.cloud/adesao"
                 payload = {
                     "nome": nome,
@@ -174,25 +175,25 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 res = await client.post(webhook_url, json=payload)
                 if res.status_code == 200:
                     resposta_msg = (
-                        f"✅ *Adesão registrada com sucesso na planilha!*\n\n"
-                        f"👤 *Aderente:* {nome}\n"
-                        f"💳 *Plano:* {plano}\n"
-                        f"📧 *E-mail:* {email}\n"
-                        f"📅 *Data:* {data_adesao}"
+                        f"✅ <b>Adesão registrada com sucesso na planilha!</b>\n\n"
+                        f"👤 <b>Aderente:</b> {nome}\n"
+                        f"💳 <b>Plano:</b> {plano}\n"
+                        f"📧 <b>E-mail:</b> {email}\n"
+                        f"📅 <b>Data:</b> {data_adesao}"
                     )
-                    await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                    await update.message.reply_text(resposta_msg, parse_mode="HTML")
                     await db.save_message(user.id, "user", message_text)
                     await db.save_message(user.id, "model", resposta_msg)
                 else:
-                    resposta_msg = f"❌ *Erro ao registrar adesão:* {res.text}"
-                    await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                    resposta_msg = f"❌ <b>Erro ao registrar adesão:</b> {res.text}"
+                    await update.message.reply_text(resposta_msg, parse_mode="HTML")
                     await db.save_message(user.id, "user", message_text)
                     await db.save_message(user.id, "model", resposta_msg)
         except Exception as ex:
             logger.error(f"Erro ao disparar webhook de adesão: {ex}")
             await update.message.reply_text(
-                f"❌ *Erro ao se conectar ao servidor da planilha:* {str(ex)}",
-                parse_mode="Markdown"
+                f"❌ <b>Erro ao se conectar ao servidor da planilha:</b> {str(ex)}",
+                parse_mode="HTML"
             )
         return
 
