@@ -36,8 +36,17 @@ class Cores:
     NEGRITO = '\033[1m'
     RESET = '\033[0m'
 
-# Bytes de uma imagem PNG válida de 1x1 pixel para teste do Groq Vision
-FAKE_PNG_BYTES = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+# Gera dinamicamente bytes de imagem válidos usando PIL para o teste do Groq Vision
+try:
+    from PIL import Image
+    import io
+    img = Image.new('RGB', (100, 100), color='red')
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    FAKE_PNG_BYTES = buffered.getvalue()
+except Exception:
+    # Fallback caso PIL não esteja instalado
+    FAKE_PNG_BYTES = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
 
 # Desativa logging verboso
 logging.basicConfig(level=logging.ERROR)

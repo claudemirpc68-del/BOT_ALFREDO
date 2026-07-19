@@ -104,7 +104,7 @@ class GroqService:
         """
         try:
             user_prompt = caption or "Analise esta imagem em detalhes. O que você vê?"
-            vision_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+            vision_model = "qwen/qwen3.6-27b"
 
             import base64
             base64_image = base64.b64encode(image_bytes).decode("utf-8")

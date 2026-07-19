@@ -226,5 +226,5 @@ class TestGroqAPIIntegration:
             assert "gato" in result
             mock_create.assert_called_once()
             called_args = mock_create.call_args[1]
-            assert called_args["model"] == "meta-llama/llama-4-scout-17b-16e-instruct"
+            assert called_args["model"] == "qwen/qwen3.6-27b"
             assert isinstance(called_args["messages"][1]["content"], list)
