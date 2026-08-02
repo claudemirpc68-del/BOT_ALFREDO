@@ -36,7 +36,7 @@ class Cores:
     NEGRITO = '\033[1m'
     RESET = '\033[0m'
 
-# Gera dinamicamente bytes de imagem válidos usando PIL para o teste do Groq Vision
+# Gera dinamicamente bytes de imagem válidos (mínimo 10x10) para o teste do Groq Vision
 try:
     from PIL import Image
     import io
@@ -45,8 +45,13 @@ try:
     img.save(buffered, format="PNG")
     FAKE_PNG_BYTES = buffered.getvalue()
 except Exception:
-    # Fallback caso PIL não esteja instalado
-    FAKE_PNG_BYTES = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+    # Fallback em código puro de PNG 10x10 válido em bytes (Groq exige pelo menos 2x2 px)
+    import zlib, struct
+    def _make_10x10_png():
+        raw = b''.join(b'\x00' + b'\xff\x00\x00' * 10 for _ in range(10))
+        def chunk(tag, data): return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
+        return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 10, 10, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
+    FAKE_PNG_BYTES = _make_10x10_png()
 
 # Desativa logging verboso
 logging.basicConfig(level=logging.ERROR)
@@ -196,7 +201,9 @@ async def testar_groq_service():
             caption="Descreva a imagem",
             history=[]
         )
-        print(f"  ✅ [Habilidade Vision] Análise enviada/respondida com sucesso.")
+        if resp_vision.startswith("❌") or "Erro" in resp_vision:
+            raise Exception(f"Groq Vision retornou erro: {resp_vision}")
+        print(f"  ✅ [Habilidade Vision] Análise enviada/respondida com sucesso: \"{resp_vision.strip()}\"")
         
         return True
     except Exception as e:

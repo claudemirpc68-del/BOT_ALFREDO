@@ -227,4 +227,4 @@ class TestGroqAPIIntegration:
             mock_create.assert_called_once()
             called_args = mock_create.call_args[1]
             assert called_args["model"] == "qwen/qwen3.6-27b"
-            assert isinstance(called_args["messages"][1]["content"], list)
+            assert isinstance(called_args["messages"][-1]["content"], list)

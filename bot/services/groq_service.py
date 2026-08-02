@@ -15,10 +15,16 @@ logger = logging.getLogger(__name__)
 class GroqService:
     """Serviço de integração com a API da Groq."""
 
-    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "llama-3.3-70b-versatile",
+        vision_model: str = "qwen/qwen3.6-27b",
+    ):
         self.client = AsyncGroq(api_key=api_key)
         self.model = model
-        logger.info(f"Groq inicializado com modelo: {model}")
+        self.vision_model = vision_model
+        logger.info(f"Groq inicializado com modelo: {model} e visão: {vision_model}")
 
     async def chat(self, message: str, history: list[dict]) -> str:
         """
@@ -104,36 +110,51 @@ class GroqService:
         """
         try:
             user_prompt = caption or "Analise esta imagem em detalhes. O que você vê?"
-            vision_model = "qwen/qwen3.6-27b"
+            vision_model = self.vision_model
 
             import base64
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
             image_url = f"data:{mime_type};base64,{base64_image}"
 
             prompt = build_prompt("image")
-            messages = [
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_url,
-                            },
-                        },
-                    ],
-                }
-            ]
+            messages = [{"role": "system", "content": prompt}]
 
-            response = await self.client.chat.completions.create(
-                model=vision_model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024,
-            )
-            return response.choices[0].message.content or "🤔 Não consegui analisar a imagem."
+            # Injeta histórico recente de mensagens (se houver)
+            if history:
+                for msg in history:
+                    role = "assistant" if msg["role"] == "model" else msg["role"]
+                    messages.append({"role": role, "content": msg["content"]})
+
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url,
+                        },
+                    },
+                ],
+            })
+
+            import asyncio
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = await self.client.chat.completions.create(
+                        model=vision_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1024,
+                    )
+                    return response.choices[0].message.content or "🤔 Não consegui analisar a imagem."
+                except Exception as ex:
+                    if ("503" in str(ex) or "over capacity" in str(ex).lower()) and attempt < max_retries - 1:
+                        logger.warning(f"Groq Vision instável (503/capacity), tentando novamente ({attempt + 1}/{max_retries})...")
+                        await asyncio.sleep(2 * (attempt + 1))
+                        continue
+                    raise ex
 
         except Exception as e:
             logger.error(f"Erro no Groq Vision: {e}", exc_info=True)

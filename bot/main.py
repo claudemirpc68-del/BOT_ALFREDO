@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
-from bot.config import TELEGRAM_BOT_TOKEN, GROQ_API_KEY, GROQ_MODEL, BOT_NAME, DB_PATH, TAVILY_API_KEY
+from bot.config import TELEGRAM_BOT_TOKEN, GROQ_API_KEY, GROQ_MODEL, GROQ_VISION_MODEL, BOT_NAME, DB_PATH, TAVILY_API_KEY
 from bot.database.db import Database
 from bot.handlers.chat import handle_photo, handle_text, handle_location
 from bot.handlers.settings import nova_command, status_command
@@ -60,7 +60,7 @@ async def post_init(application) -> None:
     application.bot_data["db"] = db
 
     # Serviço Groq
-    groq = GroqService(api_key=GROQ_API_KEY, model=GROQ_MODEL)
+    groq = GroqService(api_key=GROQ_API_KEY, model=GROQ_MODEL, vision_model=GROQ_VISION_MODEL)
     application.bot_data["groq"] = groq
 
     # Serviço Tavily (pesquisa na internet)
