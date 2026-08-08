@@ -507,7 +507,9 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             tz = timezone(timedelta(hours=-3))
             agora_dt = datetime.now(tz)
 
-        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        dias_semana = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+        dia_semana_str = dias_semana[agora_dt.weekday()]
+        agora_str = f"{dia_semana_str}, {agora_dt.strftime('%d/%m/%Y %H:%M:%S')}"
         prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
 
         messages = [
@@ -688,7 +690,9 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             tz = timezone(timedelta(hours=-3))
             agora_dt = datetime.now(tz)
 
-        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        dias_semana = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+        dia_semana_str = dias_semana[agora_dt.weekday()]
+        agora_str = f"{dia_semana_str}, {agora_dt.strftime('%d/%m/%Y %H:%M:%S')}"
         prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
 
         saudacao = "Bom dia!" if 5 <= agora_dt.hour < 12 else "Boa tarde!" if 12 <= agora_dt.hour < 18 else "Boa noite!"
@@ -759,7 +763,9 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
             tz = timezone(timedelta(hours=-3))
             agora_dt = datetime.now(tz)
 
-        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        dias_semana = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+        dia_semana_str = dias_semana[agora_dt.weekday()]
+        agora_str = f"{dia_semana_str}, {agora_dt.strftime('%d/%m/%Y %H:%M:%S')}"
         prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
 
         messages = [
@@ -842,7 +848,9 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
             tz = timezone(timedelta(hours=-3))
             agora_dt = datetime.now(tz)
 
-        agora_str = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+        dias_semana = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+        dia_semana_str = dias_semana[agora_dt.weekday()]
+        agora_str = f"{dia_semana_str}, {agora_dt.strftime('%d/%m/%Y %H:%M:%S')}"
         prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual de Brasília: {agora_str}."
 
         messages = [
@@ -1127,8 +1135,9 @@ async def onde_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             
         msg = f"🔍 *Locais Próximos de Você ({busca}):*\n\n"
         for i, l in enumerate(locais, 1):
+            dist_info = f" (a ~{l['distance_str']} de você)" if l.get("distance_str") else ""
             msg += (
-                f"*{i}. {l['name']}*\n"
+                f"*{i}. {l['name']}*{dist_info}\n"
                 f"📍 Endereço: _{l['address']}_\n"
                 f"⭐ Nota: `{l['rating']}` ({l['user_ratings_total']} avaliações)\n\n"
             )

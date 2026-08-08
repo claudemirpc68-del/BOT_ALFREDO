@@ -4,7 +4,6 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 from skills.alfredo_olhardigital import AlfredoSkillOlharDigitalAI
-from skills.alfredo_planilha import AlfredoSkillAutomacaoPlanilha
 from groq import Groq
 
 # Garante o carregamento das variáveis de ambiente a partir do arquivo .env
@@ -218,25 +217,7 @@ class ActionRegistrarAdesao(Action):
         data_adesao = tracker.get_slot("data_adesao")
         email = tracker.get_slot("email")
 
-        if not all([nome, cpf, plano, data_adesao, email]):
-            dispatcher.utter_message(text="Erro: Faltam dados necessários para concluir o registro.")
-            return []
-
-        skill = AlfredoSkillAutomacaoPlanilha()
-        resultado = skill.executar(
-            nome=nome,
-            cpf=cpf,
-            plano=plano,
-            data_adesao=data_adesao,
-            email=email
-        )
-
-        if resultado.get("sucesso"):
-            dispatcher.utter_message(text=f"Adesão registrada com sucesso para {nome} no plano {plano}!")
-        else:
-            msg_erro = resultado.get("mensagem", "Erro desconhecido")
-            dispatcher.utter_message(text=f"Não foi possível registrar a adesão: {msg_erro}")
-
+        dispatcher.utter_message(text="A integração com planilha foi removida das habilidades do ALFREDO.")
         return [
             SlotSet("nome", None),
             SlotSet("cpf", None),

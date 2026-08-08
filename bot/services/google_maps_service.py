@@ -126,16 +126,42 @@ class GoogleMapsService:
                 if response.status_code == 200:
                     data = response.json()
                     places = []
-                    for item in data.get("places", [])[:5]: # Top 5 locais
+                    import math
+                    for item in data.get("places", []):
+                        p_lat = item.get("location", {}).get("latitude")
+                        p_lng = item.get("location", {}).get("longitude")
+                        
+                        dist_km = None
+                        dist_str = None
+                        if lat is not None and lng is not None and p_lat is not None and p_lng is not None:
+                            # Cálculo de Haversine para distância real em km
+                            R = 6371.0
+                            dlat = math.radians(p_lat - lat)
+                            dlon = math.radians(p_lng - lng)
+                            a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat)) * math.cos(math.radians(p_lat)) * math.sin(dlon / 2)**2
+                            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                            dist_km = R * c
+                            if dist_km < 1.0:
+                                dist_str = f"{int(dist_km * 1000)} m"
+                            else:
+                                dist_str = f"{dist_km:.1f} km".replace(".", ",")
+
                         places.append({
                             "name": item.get("displayName", {}).get("text"),
                             "address": item.get("formattedAddress"),
                             "rating": item.get("rating", "N/A"),
                             "user_ratings_total": item.get("userRatingCount", 0),
-                            "latitude": item.get("location", {}).get("latitude"),
-                            "longitude": item.get("location", {}).get("longitude")
+                            "latitude": p_lat,
+                            "longitude": p_lng,
+                            "distance_km": dist_km if dist_km is not None else 999999,
+                            "distance_str": dist_str
                         })
-                    return places
+                    
+                    # Ordena estritamente pelos mais próximos do usuário primeiro
+                    if lat is not None and lng is not None:
+                        places.sort(key=lambda x: x["distance_km"])
+                        
+                    return places[:5] # Retorna os 5 mais próximos
                 else:
                     logger.error(f"Erro na Places API (New): Status {response.status_code} - {response.text}")
                     return []

@@ -40,7 +40,9 @@ class GroqService:
             except Exception:
                 tz = timezone(timedelta(hours=-3))
                 agora_dt = datetime.now(tz)
-            agora = agora_dt.strftime("%d/%m/%Y %H:%M:%S")
+            dias_semana = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+            dia_semana_str = dias_semana[agora_dt.weekday()]
+            agora = f"{dia_semana_str}, {agora_dt.strftime('%d/%m/%Y %H:%M:%S')}"
             prompt = build_prompt("chat")
             prompt += f"\n\n[INFORMAÇÃO DO SISTEMA]\nData e hora atual: {agora}. Use esta referência caso precise responder sobre tempo ou datas."
             messages = [{"role": "system", "content": prompt}]

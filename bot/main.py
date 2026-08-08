@@ -5,6 +5,7 @@ Entry point: inicializa serviços, registra handlers e inicia o polling.
 
 import logging
 
+from telegram import BotCommand
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -78,6 +79,33 @@ async def post_init(application) -> None:
     from bot.config import GOOGLE_MAPS_API_KEY
     google_maps = GoogleMapsService(api_key=GOOGLE_MAPS_API_KEY)
     application.bot_data["google_maps"] = google_maps
+
+    # Configura o menu autocompletar de comandos no Telegram quando o usuário digita /
+    commands = [
+        BotCommand("start", "Iniciar atendimento e ver boas-vindas"),
+        BotCommand("help", "Ajuda e menu com todos os comandos disponíveis"),
+        BotCommand("nova", "Iniciar uma nova conversa e limpar histórico"),
+        BotCommand("status", "Verificar o status e saúde do bot"),
+        BotCommand("resumir", "Resumir um texto ou mensagem"),
+        BotCommand("traduzir", "Traduzir texto para outro idioma"),
+        BotCommand("codigo", "Gerar ou explicar código de programação"),
+        BotCommand("linkedin", "Gerar post atraente para o LinkedIn"),
+        BotCommand("pesquisar", "Pesquisar informações em tempo real na web"),
+        BotCommand("olhardigital", "Ler as últimas notícias do Olhar Digital"),
+        BotCommand("boletim", "Gerar resumo das principais notícias do dia"),
+        BotCommand("cotacao", "Consultar cotação de moedas (ex: USD BRL)"),
+        BotCommand("rota", "Calcular rota de transporte (origem para destino)"),
+        BotCommand("onde", "Localizar lugares e estabelecimentos próximos"),
+        BotCommand("hora", "Consultar a data e hora oficial de Brasília"),
+        BotCommand("lembrete", "Agendar um lembrete (ex: /lembrete 30m remedio)"),
+        BotCommand("lembretes", "Listar todos os seus lembretes ativos"),
+        BotCommand("lembrete_cancelar", "Cancelar um lembrete pelo ID"),
+    ]
+    try:
+        await application.bot.set_my_commands(commands)
+        logger.info("Menu autocompletar de comandos do Telegram registrado com sucesso!")
+    except Exception as ex_cmd:
+        logger.error(f"Erro ao registrar menu de comandos no Telegram: {ex_cmd}")
 
     logger.info(f"{BOT_NAME} inicializado com sucesso!")
     logger.info(f"Modelo: {GROQ_MODEL}")
