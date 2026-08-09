@@ -72,10 +72,12 @@ async def limpar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Esvazia a Lixeira do Windows."""
+    """Esvazia a Lixeira do Windows de forma silenciosa sem popup de confirmação."""
     msg = await update.message.reply_text("🗑️ Esvaziando a Lixeira do Windows...")
     try:
-        ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0)
+        # Flags: 1=SHERB_NOCONFIRMATION, 2=SHERB_NOPROGRESSUI, 4=SHERB_NOSOUND
+        flags = 7
+        ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, flags)
         await msg.edit_text("🗑️ *Lixeira do Windows esvaziada com sucesso!*", parse_mode="Markdown")
     except Exception as erro:
         await msg.edit_text(f"❌ Erro ao esvaziar a Lixeira: `{erro}`", parse_mode="Markdown")
