@@ -25,6 +25,14 @@ Sou seu assistente pessoal inteligente, alimentado por IA de última geração.
 🚀  Posts virais para o LinkedIn — `/linkedin`
 ⏰  Criar lembretes — `/lembrete`
 
+📁 *Downloads & Sistema:*
+📁  Organizar Downloads — `/organizar`
+📊  Relatório de espaço — `/relatorio`
+👯  Remover duplicados — `/duplicados`
+🧹  Limpar temporários — `/limpar`
+🗑️  Esvaziar Lixeira — `/lixeira`
+📜  Ver logs recentes — `/logs`
+
 ⚙️ *Comandos úteis:*
 • `/nova` — Iniciar nova conversa
 • `/status` — Ver informações da sessão
@@ -36,12 +44,10 @@ _Manda sua mensagem, estou pronto para ajudar!_ 🚀
 HELP_MESSAGE = f"""
 📖 *Guia de Comandos — {BOT_NAME}*
 
-*💬 Conversa:*
+*💬 Conversa & IA:*
 • Envie qualquer texto para conversar
 • Envie uma 📷 foto para eu analisar
 • `/nova` — Limpa histórico e inicia nova conversa
-
-*🛠️ Ferramentas:*
 • `/resumir <texto>` — Resume um texto longo
 • `/traduzir <idioma> <texto>` — Traduz um texto
 • `/codigo <descrição>` — Gera código
@@ -49,11 +55,17 @@ HELP_MESSAGE = f"""
 • `/pesquisar <termo>` — Pesquisa na internet em tempo real
 • `/lembrete <minutos> <mensagem>` — Cria lembrete
 
+*📁 Automação de Downloads & Lixeira:*
+• `/organizar` — Categoriza +40 extensões, apaga duplicados e temporários
+• `/relatorio` — Mostra ocupação da pasta Downloads e espaço livre em C:
+• `/duplicados` — Busca e apaga apenas arquivos duplicados
+• `/limpar` — Limpa temporários (.tmp, .crdownload, etc.) antigos (>7 dias)
+• `/lixeira` — Esvazia a Lixeira do Windows
+• `/logs` — Exibe as últimas linhas do último log gerado
+
 *⚙️ Sistema:*
 • `/status` — Informações da sessão
 • `/help` — Mostra esta ajuda
-
-💡 *Dica:* Responda a uma mensagem com `/resumir` ou `/traduzir` para aplicar a ferramenta ao texto respondido!
 """
 
 
