@@ -256,10 +256,37 @@ async def error_handler(update, context) -> None:
             pass  # Não deixa o error handler falhar
 
 
+# ── Healthcheck HTTP Server para Coolify / Reverse Proxy ────────
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "application/json; charset=utf-8")
+        self.end_headers()
+        res = '{"status": "online", "bot": "' + str(BOT_NAME) + '", "message": "🤖 ALFREDO Telegram Bot está online e operacional!"}'
+        self.wfile.write(res.encode("utf-8"))
+
+    def log_message(self, format, *args):
+        pass
+
+def iniciar_servidor_healthcheck():
+    port = int(os.environ.get("PORT", 80))
+    try:
+        server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        logger.info(f"Servidor HTTP Healthcheck rodando na porta {port}")
+    except Exception as e:
+        logger.warning(f"Não foi possível abrir porta HTTP {port} para healthcheck: {e}")
+
+
 # ── Main ──────────────────────────────────────────────────────
 
 def main() -> None:
     """Constrói e executa o bot ALFREDO."""
+    iniciar_servidor_healthcheck()
     print(f"""
 =============================================
    {BOT_NAME} - Assistente Pessoal
