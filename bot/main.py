@@ -260,13 +260,46 @@ async def error_handler(update, context) -> None:
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+import json
+from bot.services.task_queue import obter_proxima_tarefa, registrar_resultado
+
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path.startswith("/api/agent/poll"):
+            self.send_response(200)
+            self.send_header("Content-type", "application/json; charset=utf-8")
+            self.end_headers()
+            task = obter_proxima_tarefa()
+            res = json.dumps({"status": "ok", "task": task}, ensure_ascii=False)
+            self.wfile.write(res.encode("utf-8"))
+            return
+
         self.send_response(200)
         self.send_header("Content-type", "application/json; charset=utf-8")
         self.end_headers()
         res = '{"status": "online", "bot": "' + str(BOT_NAME) + '", "message": "🤖 ALFREDO Telegram Bot está online e operacional!"}'
         self.wfile.write(res.encode("utf-8"))
+
+    def do_POST(self):
+        if self.path.startswith("/api/agent/result"):
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode("utf-8", errors="replace")
+            try:
+                data = json.loads(body)
+                task_id = data.get("id")
+                output = data.get("output", "")
+                if task_id and registrar_resultado(task_id, output):
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(b'{"status": "ok"}')
+                    return
+            except Exception as e:
+                logger.error(f"Erro ao processar resultado do agente: {e}")
+        self.send_response(400)
+        self.send_header("Content-type", "application/json; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b'{"status": "error"}')
 
     def log_message(self, format, *args):
         pass

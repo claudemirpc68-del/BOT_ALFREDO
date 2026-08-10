@@ -58,10 +58,28 @@ def executar_agente(args: list[str]) -> str:
         return f"Erro ao executar o agente: {erro}"
 
 
+from bot.services.task_queue import criar_tarefa, aguardar_resultado
+
+
+async def executar_comando_downloads(command_name: str, args: list[str]) -> str:
+    """Executa localmente (se em Windows) ou aguarda resposta do agente do PC (se no Coolify)."""
+    if sys.platform == "win32":
+        return executar_agente(args)
+
+    task_id = criar_tarefa(command_name, args)
+    resultado = await aguardar_resultado(task_id, timeout_segundos=25.0)
+    if resultado is not None:
+        return resultado
+    return (
+        "⚠️ *O agente no seu PC local não respondeu (Timeout).*\n\n"
+        "Certifique-se de que seu PC de casa está ligado e executando o agente local para sincronização."
+    )
+
+
 async def organizar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Organiza a pasta Downloads (+40 extensões), remove duplicados e limpa temporários."""
     msg = await update.message.reply_text("📁 Organizando pasta Downloads, removendo duplicados e limpando temporários...")
-    saida = executar_agente(["once"])
+    saida = await executar_comando_downloads("organizar", ["once"])
     texto_final = f"✅ *Organização Concluída!*\n\n```\n{saida[:3500]}\n```"
     await msg.edit_text(texto_final, parse_mode="Markdown")
 
@@ -69,7 +87,7 @@ async def organizar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def relatorio_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gera o relatório de espaço consumido e arquivos na pasta Downloads."""
     msg = await update.message.reply_text("📊 Gerando relatório da pasta Downloads...")
-    saida = executar_agente(["--relatorio"])
+    saida = await executar_comando_downloads("relatorio", ["--relatorio"])
     texto_final = f"📊 *Relatório da Pasta Downloads*\n\n```\n{saida[:3500]}\n```"
     await msg.edit_text(texto_final, parse_mode="Markdown")
 
@@ -77,7 +95,7 @@ async def relatorio_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def duplicados_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Busca e apaga arquivos duplicados na pasta Downloads."""
     msg = await update.message.reply_text("👯 Buscando e removendo arquivos duplicados...")
-    saida = executar_agente(["--duplicados"])
+    saida = await executar_comando_downloads("duplicados", ["--duplicados"])
     texto_final = f"👯 *Remoção de Duplicados Concluída*\n\n```\n{saida[:3500]}\n```"
     await msg.edit_text(texto_final, parse_mode="Markdown")
 
@@ -85,26 +103,23 @@ async def duplicados_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def limpar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Limpa arquivos temporários (.tmp, .crdownload, etc.) antigos."""
     msg = await update.message.reply_text("🧹 Limpando arquivos temporários com mais de 7 dias...")
-    saida = executar_agente(["--limpar"])
+    saida = await executar_comando_downloads("limpar", ["--limpar"])
     texto_final = f"🧹 *Limpeza de Temporários Concluída*\n\n```\n{saida[:3500]}\n```"
     await msg.edit_text(texto_final, parse_mode="Markdown")
 
 
 async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Esvazia a Lixeira do Windows (ou avisa se executando em servidor Linux/Coolify)."""
+    """Esvazia a Lixeira do Windows (diretamente ou via agente local)."""
     msg = await update.message.reply_text("🗑️ Esvaziando a Lixeira do Windows...")
-    
+
     if sys.platform != "win32":
-        await msg.edit_text(
-            "ℹ️ *O bot está executando em servidor Linux (Coolify).*\n\n"
-            "O comando para esvaziar a Lixeira do Windows local funciona quando o bot é executado no seu PC Windows.",
-            parse_mode="Markdown",
-        )
+        saida = await executar_comando_downloads("lixeira", ["--lixeira"])
+        await msg.edit_text(saida, parse_mode="Markdown")
         return
 
     sucesso = False
     erro_msg = ""
-    
+
     # Tentativa 1: Win32 API via ctypes (se disponível no ambiente Windows)
     if hasattr(ctypes, "windll"):
         try:
@@ -113,7 +128,7 @@ async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             sucesso = True
         except Exception as e:
             erro_msg = str(e)
-            
+
     # Tentativa 2: Fallback via PowerShell
     if not sucesso:
         try:
@@ -121,7 +136,7 @@ async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 ["powershell", "-NoProfile", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"],
                 capture_output=True,
                 text=True,
-                timeout=15
+                timeout=15,
             )
             if res.returncode == 0:
                 sucesso = True
@@ -138,6 +153,10 @@ async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Exibe o último arquivo de log gerado pelo agente."""
+    if sys.platform != "win32":
+        saida = await executar_comando_downloads("logs", ["--logs"])
+        await update.message.reply_text(saida, parse_mode="Markdown")
+        return
     log_dir = Path(os.path.expanduser("~")) / "Downloads" / "Logs_Agente"
     logs = sorted(log_dir.glob("agente_*.log")) if log_dir.exists() else []
     if not logs:

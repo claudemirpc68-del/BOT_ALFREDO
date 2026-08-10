@@ -226,9 +226,82 @@ def relatorio():
         print(f"  {free_gb:.2f} GB")
 
 
+def executar_comando_local(command: str, args: list) -> str:
+    """Executa o comando requisitado e retorna a resposta formatada em texto."""
+    import io, contextlib
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        if command == "organizar":
+            rodar_passagem()
+        elif command == "relatorio":
+            relatorio()
+        elif command == "duplicados":
+            remover_duplicados(DOWNLOADS)
+        elif command == "limpar":
+            limpar_temporarios(DOWNLOADS, dias=7)
+        elif command == "lixeira":
+            import subprocess
+            res = subprocess.run(["powershell", "-NoProfile", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"], capture_output=True, text=True)
+            if res.returncode == 0:
+                print("🗑️ Lixeira do Windows esvaziada com sucesso no PC local!")
+            else:
+                print(f"Erro ao esvaziar lixeira: {res.stderr}")
+        elif command == "logs":
+            log_dir = os.path.join(os.path.expanduser("~"), "Downloads", "Logs_Agente")
+            logs = sorted([os.path.join(log_dir, f) for f in os.listdir(log_dir) if f.startswith("agente_")]) if os.path.exists(log_dir) else []
+            if logs:
+                with open(logs[-1], "r", encoding="utf-8", errors="ignore") as f:
+                    print("\n".join(f.readlines()[-25:]))
+            else:
+                print("Nenhum log encontrado.")
+        else:
+            rodar_passagem()
+    return buffer.getvalue().strip() or "Comando executado com sucesso."
+
+
+def conectar_bot_nuvem(server_url: str = "http://nsq5vpnj66edqa92qtr5peel.72.61.130.70.sslip.io"):
+    """Loop de escuta remota do agente no PC para atender comandos enviados via Telegram ao bot na nuvem."""
+    import json
+    import urllib.request
+
+    poll_url = f"{server_url.rstrip('/')}/api/agent/poll"
+    result_url = f"{server_url.rstrip('/')}/api/agent/result"
+    print(f"📡 Agente local conectado à nuvem: {server_url}")
+    print("Aguardando comandos enviados pelo Telegram (Ctrl+C para encerrar)...")
+
+    while True:
+        try:
+            req = urllib.request.Request(poll_url, headers={"User-Agent": "AlfredoLocalAgent/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                task = data.get("task")
+                if task:
+                    task_id = task.get("id")
+                    command = task.get("command")
+                    args = task.get("args", [])
+                    print(f"⚡ Comando recebido da nuvem: {command} (ID: {task_id})")
+                    saida = executar_comando_local(command, args)
+
+                    res_payload = json.dumps({"id": task_id, "output": saida}).encode("utf-8")
+                    post_req = urllib.request.Request(
+                        result_url,
+                        data=res_payload,
+                        headers={"Content-Type": "application/json; charset=utf-8", "User-Agent": "AlfredoLocalAgent/1.0"},
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(post_req, timeout=10) as p_resp:
+                        print(f"✅ Resultado enviado para a nuvem!")
+        except Exception:
+            pass
+        time.sleep(3)
+
+
 if __name__ == "__main__":
     args = [a.lower() for a in sys.argv[1:]]
-    if "once" in args or "1x" in args:
+    if "--remote" in args or "-r" in args:
+        url = args[args.index("--remote") + 1] if "--remote" in args and len(args) > args.index("--remote") + 1 else "http://nsq5vpnj66edqa92qtr5peel.72.61.130.70.sslip.io"
+        conectar_bot_nuvem(url)
+    elif "once" in args or "1x" in args:
         rodar_uma_vez()
     elif "--relatorio" in args:
         relatorio()
