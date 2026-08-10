@@ -10,25 +10,41 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
 
-AGENTE_PATH = Path(r"C:\Users\FAMÍLIA\Desktop\GERENCIA_DOWLOADS\agente_downloads.py")
+def obter_caminho_agente() -> Path:
+    """Busca dinamicamente o arquivo agente_downloads.py em locais prováveis (bundled e desktop)."""
+    home = Path.home()
+    services_dir = Path(__file__).resolve().parent.parent / "services"
+    candidatos = [
+        services_dir / "agente_downloads.py",
+        home / "Desktop" / "GERENCIA_DOWLOADS" / "agente_downloads.py",
+        home / "Desktop" / "GERENCIA_DOWNLOADS" / "agente_downloads.py",
+        Path(r"C:\Users\FAMÍLIA\Desktop\GERENCIA_DOWLOADS\agente_downloads.py"),
+        Path(r"C:\Users\FAMÍLIA\Desktop\GERENCIA_DOWNLOADS\agente_downloads.py"),
+        Path("/app/bot/services/agente_downloads.py"),
+    ]
+    for candidate in candidatos:
+        if candidate.exists():
+            return candidate
+    return candidatos[0]
 
 
 def executar_agente(args: list[str]) -> str:
     """Executa o script agente_downloads.py e captura a saída."""
-    if not AGENTE_PATH.exists():
-        return f"Erro: Script do agente não encontrado em {AGENTE_PATH}"
+    agente_path = obter_caminho_agente()
+    if not agente_path.exists():
+        return f"Erro: Script do agente não encontrado em {agente_path}"
 
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
     try:
         resultado = subprocess.run(
-            [sys.executable, str(AGENTE_PATH)] + args,
+            [sys.executable, str(agente_path)] + args,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=180,
-            cwd=str(AGENTE_PATH.parent),
+            cwd=str(agente_path.parent),
             env=env,
         )
         saida = (resultado.stdout or "") + (resultado.stderr or "")
@@ -72,15 +88,49 @@ async def limpar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def lixeira_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Esvazia a Lixeira do Windows de forma silenciosa sem popup de confirmação."""
+    """Esvazia a Lixeira do Windows (ou avisa se executando em servidor Linux/Coolify)."""
     msg = await update.message.reply_text("🗑️ Esvaziando a Lixeira do Windows...")
-    try:
-        # Flags: 1=SHERB_NOCONFIRMATION, 2=SHERB_NOPROGRESSUI, 4=SHERB_NOSOUND
-        flags = 7
-        ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, flags)
+    
+    if sys.platform != "win32":
+        await msg.edit_text(
+            "ℹ️ *O bot está executando em servidor Linux (Coolify).*\n\n"
+            "O comando para esvaziar a Lixeira do Windows local funciona quando o bot é executado no seu PC Windows.",
+            parse_mode="Markdown",
+        )
+        return
+
+    sucesso = False
+    erro_msg = ""
+    
+    # Tentativa 1: Win32 API via ctypes (se disponível no ambiente Windows)
+    if hasattr(ctypes, "windll"):
+        try:
+            flags = 7
+            ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, flags)
+            sucesso = True
+        except Exception as e:
+            erro_msg = str(e)
+            
+    # Tentativa 2: Fallback via PowerShell
+    if not sucesso:
+        try:
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"],
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            if res.returncode == 0:
+                sucesso = True
+            else:
+                erro_msg = res.stderr.strip() or f"PowerShell retornou código {res.returncode}"
+        except Exception as e:
+            erro_msg = str(e)
+
+    if sucesso:
         await msg.edit_text("🗑️ *Lixeira do Windows esvaziada com sucesso!*", parse_mode="Markdown")
-    except Exception as erro:
-        await msg.edit_text(f"❌ Erro ao esvaziar a Lixeira: `{erro}`", parse_mode="Markdown")
+    else:
+        await msg.edit_text(f"❌ Erro ao esvaziar a Lixeira: `{erro_msg}`", parse_mode="Markdown")
 
 
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

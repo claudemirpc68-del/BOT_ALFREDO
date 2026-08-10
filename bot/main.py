@@ -3,6 +3,15 @@ ALFREDO — Bot Assistente Pessoal no Telegram.
 Entry point: inicializa serviços, registra handlers e inicia o polling.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Garante que o diretório raiz do projeto esteja no sys.path
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 import logging
 
 from telegram import BotCommand
