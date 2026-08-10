@@ -48,7 +48,10 @@ def executar_agente(args: list[str]) -> str:
             env=env,
         )
         saida = (resultado.stdout or "") + (resultado.stderr or "")
-        return saida.strip() or "(Sem alterações/sem saída)"
+        texto = saida.strip() or "(Sem alterações/sem saída)"
+        if sys.platform != "win32":
+            texto = "ℹ️ [Servidor Nuvem - Coolify/Linux]\nNota: Operando no ambiente do servidor. Para gerenciar a pasta Downloads do seu PC Windows local, execute o bot no seu computador.\n\n" + texto
+        return texto
     except subprocess.TimeoutExpired:
         return "Timeout: O script demorou muito para responder."
     except Exception as erro:
