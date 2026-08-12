@@ -28,14 +28,7 @@ from bot.database.db import Database
 from bot.handlers.chat import handle_photo, handle_text, handle_location
 from bot.handlers.settings import nova_command, status_command
 from bot.handlers.start import help_command, start_command
-from bot.handlers.downloads import (
-    organizar_command,
-    relatorio_command,
-    duplicados_command,
-    limpar_command,
-    lixeira_command,
-    logs_command,
-)
+
 from bot.handlers.tools import (
     codigo_command,
     lembrete_command,
@@ -117,12 +110,7 @@ async def post_init(application) -> None:
         BotCommand("lembrete", "Agendar um lembrete (ex: /lembrete 30m remedio)"),
         BotCommand("lembretes", "Listar todos os seus lembretes ativos"),
         BotCommand("lembrete_cancelar", "Cancelar um lembrete pelo ID"),
-        BotCommand("organizar", "Organizar pasta Downloads (+40 extensões, duplicados, temporários)"),
-        BotCommand("relatorio", "Relatório da pasta Downloads e espaço livre no disco C:"),
-        BotCommand("duplicados", "Buscar e remover arquivos duplicados na pasta Downloads"),
-        BotCommand("limpar", "Limpar arquivos temporários antigos (> 7 dias)"),
-        BotCommand("lixeira", "Esvaziar a Lixeira do Windows"),
-        BotCommand("logs", "Exibir os últimos registros do log de downloads"),
+
     ]
     try:
         await application.bot.set_my_commands(commands)
@@ -361,12 +349,7 @@ def main() -> None:
     app.add_handler(CommandHandler("onde", onde_command))
     app.add_handler(CommandHandler("hora", hora_command))
     app.add_handler(CommandHandler("data", hora_command))
-    app.add_handler(CommandHandler("organizar", organizar_command))
-    app.add_handler(CommandHandler("relatorio", relatorio_command))
-    app.add_handler(CommandHandler("duplicados", duplicados_command))
-    app.add_handler(CommandHandler("limpar", limpar_command))
-    app.add_handler(CommandHandler("lixeira", lixeira_command))
-    app.add_handler(CommandHandler("logs", logs_command))
+
 
     # ── Registra handlers de mensagens ──
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
