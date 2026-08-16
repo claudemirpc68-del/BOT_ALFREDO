@@ -4,6 +4,7 @@ Fornece chat contextual, análise de imagens, resumo, tradução, geração de c
 Usa o sistema modular de prompts (persona + skills).
 """
 
+import re
 import logging
 from groq import AsyncGroq
 
@@ -61,7 +62,7 @@ class GroqService:
                 temperature=0.7,
                 max_tokens=2048,
             )
-            return response.choices[0].message.content or "🤔 Não consegui gerar uma resposta. Tente novamente."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui gerar uma resposta. Tente novamente."
 
         except Exception as e:
             logger.error(f"Erro no Groq chat: {e}", exc_info=True)
@@ -93,7 +94,7 @@ class GroqService:
                 temperature=0.5,
                 max_tokens=2048,
             )
-            return response.choices[0].message.content or "🤔 Não consegui elaborar uma resposta."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui elaborar uma resposta."
 
         except Exception as e:
             logger.error(f"Erro no Groq search_answer: {e}", exc_info=True)
@@ -150,7 +151,7 @@ class GroqService:
                         temperature=0.7,
                         max_tokens=1024,
                     )
-                    return response.choices[0].message.content or "🤔 Não consegui analisar a imagem."
+                    return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui analisar a imagem."
                 except Exception as ex:
                     if ("503" in str(ex) or "over capacity" in str(ex).lower()) and attempt < max_retries - 1:
                         logger.warning(f"Groq Vision instável (503/capacity), tentando novamente ({attempt + 1}/{max_retries})...")
@@ -183,7 +184,7 @@ class GroqService:
                 temperature=0.3,
                 max_tokens=1024,
             )
-            return response.choices[0].message.content or "🤔 Não consegui resumir o texto."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui resumir o texto."
 
         except Exception as e:
             logger.error(f"Erro no Groq resumo: {e}", exc_info=True)
@@ -200,7 +201,7 @@ class GroqService:
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": f"Traduza o seguinte texto para {target_lang}:\n\n{text}"
+                    "content": f"Traduza fielmente o seguinte texto para o idioma {target_lang}. Retorne APENAS o texto traduzido final, sem aspas extras, sem preâmbulos e sem explicações adicionais:\n\n{text}"
                 }
             ]
 
@@ -210,7 +211,7 @@ class GroqService:
                 temperature=0.2,
                 max_tokens=2048,
             )
-            return response.choices[0].message.content or "🤔 Não consegui traduzir o texto."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui traduzir o texto."
 
         except Exception as e:
             logger.error(f"Erro no Groq tradução: {e}", exc_info=True)
@@ -237,7 +238,7 @@ class GroqService:
                 temperature=0.4,
                 max_tokens=3000,
             )
-            return response.choices[0].message.content or "🤔 Não consegui gerar o código."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui gerar o código."
 
         except Exception as e:
             logger.error(f"Erro no Groq código: {e}", exc_info=True)
@@ -268,11 +269,22 @@ class GroqService:
                 temperature=0.8,
                 max_tokens=1024,
             )
-            return response.choices[0].message.content or "🤔 Não consegui criar o post para o LinkedIn."
+            return self._clean_response(response.choices[0].message.content) or "🤔 Não consegui criar o post para o LinkedIn."
 
         except Exception as e:
             logger.error(f"Erro no Groq LinkedIn Post: {e}", exc_info=True)
             return self._format_error(e)
+
+    @staticmethod
+    def _clean_response(content: str | None) -> str:
+        """Remove blocos de raciocínio interno (<think>...</think>) e formata a resposta."""
+        if not content:
+            return ""
+        # Remove tags <think>...</think> completas
+        cleaned = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
+        # Remove caso tenha tag <think> aberta sem fechamento (em caso de truncamento)
+        cleaned = re.sub(r"<think>.*$", "", cleaned, flags=re.DOTALL)
+        return cleaned.strip()
 
     @staticmethod
     def _format_error(error: Exception) -> str:

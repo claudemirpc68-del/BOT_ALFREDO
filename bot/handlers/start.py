@@ -50,6 +50,8 @@ HELP_MESSAGE = f"""
 *⚙️ Sistema:*
 • `/status` — Informações da sessão
 • `/help` — Mostra esta ajuda
+
+💡 *Dica:* Você também pode responder a qualquer mensagem com `/resumir` ou `/traduzir`!
 """
 
 

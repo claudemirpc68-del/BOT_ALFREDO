@@ -11,7 +11,7 @@ Handlers para ferramentas especializadas:
 import logging
 import re
 
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
 from bot.config import MAX_REMINDER_MINUTES
@@ -21,25 +21,99 @@ from bot.services.tavily_service import TavilyService
 
 logger = logging.getLogger(__name__)
 
-# Mapeamento de códigos de idioma para nomes
+# Mapeamento flexível de códigos e nomes de idiomas para formato legível
 _LANGUAGES: dict[str, str] = {
-    "en": "inglês",
-    "es": "espanhol",
-    "fr": "francês",
-    "de": "alemão",
-    "it": "italiano",
-    "ja": "japonês",
-    "ko": "coreano",
-    "zh": "chinês",
-    "pt": "português",
-    "ru": "russo",
-    "ar": "árabe",
-    "hi": "hindi",
-    "nl": "holandês",
-    "sv": "sueco",
-    "pl": "polonês",
-    "tr": "turco",
+    # Inglês
+    "en": "inglês", "eng": "inglês", "english": "inglês", "ingles": "inglês", "inglês": "inglês",
+    # Espanhol
+    "es": "espanhol", "esp": "espanhol", "spanish": "espanhol", "espanhol": "espanhol", "castelhano": "espanhol", "castellano": "espanhol",
+    # Francês
+    "fr": "francês", "fra": "francês", "french": "francês", "frances": "francês", "francês": "francês",
+    # Alemão
+    "de": "alemão", "deu": "alemão", "ger": "alemão", "german": "alemão", "alemao": "alemão", "alemão": "alemão",
+    # Italiano
+    "it": "italiano", "ita": "italiano", "italian": "italiano", "italiano": "italiano",
+    # Português
+    "pt": "português", "por": "português", "portuguese": "português", "portugues": "português", "português": "português", "pt-br": "português", "pt-pt": "português",
+    # Japonês
+    "ja": "japonês", "jp": "japonês", "jpn": "japonês", "japanese": "japonês", "japones": "japonês", "japonês": "japonês",
+    # Chinês
+    "zh": "chinês", "chi": "chinês", "zho": "chinês", "chinese": "chinês", "chines": "chinês", "chinês": "chinês", "mandarim": "chinês",
+    # Coreano
+    "ko": "coreano", "kor": "coreano", "korean": "coreano", "coreano": "coreano",
+    # Russo
+    "ru": "russo", "rus": "russo", "russian": "russo", "russo": "russo",
+    # Árabe
+    "ar": "árabe", "ara": "árabe", "arabic": "árabe", "arabe": "árabe", "árabe": "árabe",
+    # Holandês
+    "nl": "holandês", "nld": "holandês", "dut": "holandês", "dutch": "holandês", "holandes": "holandês", "holandês": "holandês", "neerlandes": "holandês", "neerlandês": "holandês",
+    # Polonês
+    "pl": "polonês", "pol": "polonês", "polish": "polonês", "polones": "polonês", "polonês": "polonês",
+    # Sueco
+    "sv": "sueco", "swe": "sueco", "swedish": "sueco", "sueco": "sueco",
+    # Turco
+    "tr": "turco", "tur": "turco", "turkish": "turco", "turco": "turco",
+    # Hindi
+    "hi": "hindi", "hin": "hindi", "hindi": "hindi",
+    # Grego
+    "el": "grego", "gre": "grego", "greek": "grego", "grego": "grego",
+    # Hebraico
+    "he": "hebraico", "heb": "hebraico", "hebrew": "hebraico", "hebraico": "hebraico",
+    # Latim
+    "la": "latim", "lat": "latim", "latin": "latim", "latim": "latim",
 }
+
+
+def _parse_translation_args(args: list[str]) -> tuple[str | None, str | None]:
+    """
+    Identifica de forma inteligente o idioma de destino e o texto nos argumentos.
+    Trata preposições como 'para o', 'para a', 'para', 'pra', 'to', etc.
+    Retorna (target_lang, text). Se nenhum idioma explícito foi fornecido, target_lang será None.
+    """
+    if not args:
+        return None, None
+
+    tokens = list(args)
+
+    # Remove preposições iniciais: 'para o', 'para a', 'para', 'pra', 'pro', 'to', 'in'
+    if tokens and tokens[0].lower() in ["para", "pra", "pro", "to", "in"]:
+        tokens.pop(0)
+        if tokens and tokens[0].lower() in ["o", "a", "os", "as", "the"]:
+            tokens.pop(0)
+
+    if tokens:
+        first = tokens[0].lower()
+        if first in _LANGUAGES:
+            target_lang = _LANGUAGES[first]
+            remaining = tokens[1:]
+            text = " ".join(remaining).strip() if remaining else None
+            return target_lang, text
+
+    # Se não especificou idioma reconhecido, nenhum idioma alvo foi fixado
+    return None, " ".join(args).strip()
+
+
+def _get_translation_keyboard() -> InlineKeyboardMarkup:
+    """Gera teclado interativo para seleção rápida de idioma de destino."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🇧🇷 Português", callback_data="trans:português"),
+            InlineKeyboardButton("🇺🇸 Inglês", callback_data="trans:inglês"),
+        ],
+        [
+            InlineKeyboardButton("🇪🇸 Espanhol", callback_data="trans:espanhol"),
+            InlineKeyboardButton("🇫🇷 Francês", callback_data="trans:francês"),
+        ],
+        [
+            InlineKeyboardButton("🇩🇪 Alemão", callback_data="trans:alemão"),
+            InlineKeyboardButton("🇮🇹 Italiano", callback_data="trans:italiano"),
+        ],
+        [
+            InlineKeyboardButton("🇯🇵 Japonês", callback_data="trans:japonês"),
+            InlineKeyboardButton("🇨🇳 Chinês", callback_data="trans:chinês"),
+        ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
 # ── /resumir ──────────────────────────────────────────────────
@@ -70,47 +144,87 @@ async def resumir_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ── /traduzir ─────────────────────────────────────────────────
 
 async def traduzir_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Traduz um texto para o idioma especificado (padrão: inglês)."""
+    """Traduz um texto para o idioma especificado ou solicita o idioma interativamente."""
     groq: GroqService = context.bot_data["groq"]
     args = context.args or []
 
-    target_lang = "inglês"
-    text = None
+    target_lang, text = _parse_translation_args(args)
 
-    if args:
-        # Verifica se o primeiro argumento é um código de idioma
-        first_arg = args[0].lower()
-        if first_arg in _LANGUAGES:
-            target_lang = _LANGUAGES[first_arg]
-            text = " ".join(args[1:]) if len(args) > 1 else None
-        else:
-            text = " ".join(args)
-
-    # Se não tem texto nos args, tenta a mensagem respondida
+    # Se não tem texto nos args, tenta obter da mensagem respondida
     if not text:
         if update.message.reply_to_message and update.message.reply_to_message.text:
             text = update.message.reply_to_message.text
         else:
-            langs_list = ", ".join(
-                f"`{code}` ({name})" for code, name in list(_LANGUAGES.items())[:8]
-            )
             await update.message.reply_text(
                 "🌐 *Como usar o /traduzir:*\n\n"
-                "• `/traduzir <texto>` — Traduz para inglês\n"
-                "• `/traduzir en <texto>` — Traduz para inglês\n"
-                "• `/traduzir es <texto>` — Traduz para espanhol\n"
-                "• Ou responda a uma mensagem com `/traduzir`\n\n"
-                f"*Idiomas:* {langs_list}...",
+                "• `/traduzir <texto>` — O bot perguntará para qual idioma traduzir\n"
+                "• `/traduzir pt <texto>` ou `/traduzir português <texto>` — Traduz direto para português\n"
+                "• `/traduzir en <texto>` ou `/traduzir inglês <texto>` — Traduz direto para inglês\n"
+                "• `/traduzir es <texto>` ou `/traduzir espanhol <texto>` — Traduz direto para espanhol\n"
+                "• `/traduzir para o francês <texto>` — Traduz direto para francês\n"
+                "• Ou responda a qualquer mensagem com `/traduzir [idioma]`",
                 parse_mode="Markdown",
             )
             return
 
+    # Se o usuário não especificou o idioma, pergunta com botões interativos
+    if not target_lang:
+        context.user_data["pending_translation_text"] = text
+        preview = (text[:120] + "...") if len(text) > 120 else text
+        await update.message.reply_text(
+            f"🌐 *Para qual idioma você deseja traduzir?*\n\n"
+            f"📝 *Texto:* _{preview}_\n\n"
+            "👇 Escolha o idioma de destino abaixo:",
+            reply_markup=_get_translation_keyboard(),
+            parse_mode="Markdown",
+        )
+        return
+
+    # Se o idioma já foi especificado, traduz imediatamente
     await update.message.chat.send_action("typing")
     response = await groq.translate(text, target_lang)
 
     await send_long_message(
         update, f"🌐 *Tradução ({target_lang}):*\n\n{response}"
     )
+
+
+async def traduzir_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Processa a seleção interativa de idioma via botões inline."""
+    query = update.callback_query
+    await query.answer()
+
+    groq: GroqService = context.bot_data["groq"]
+    data = query.data
+    if not data or not data.startswith("trans:"):
+        return
+
+    target_lang = data.split(":", 1)[1]
+    text = context.user_data.get("pending_translation_text")
+
+    if not text:
+        await query.edit_message_text(
+            "⚠️ O texto para tradução expirou. Por favor, use `/traduzir <texto>` novamente.",
+            parse_mode="Markdown",
+        )
+        return
+
+    await query.edit_message_text(
+        f"⏳ *Traduzindo para {target_lang}...*",
+        parse_mode="Markdown",
+    )
+
+    response = await groq.translate(text, target_lang)
+    final_text = f"🌐 *Tradução ({target_lang}):*\n\n{response}"
+
+    if len(final_text) <= 4096:
+        try:
+            await query.edit_message_text(final_text, parse_mode="Markdown")
+        except Exception:
+            await query.edit_message_text(final_text)
+    else:
+        await query.delete_message()
+        await send_long_message(update, final_text)
 
 
 # ── /codigo ───────────────────────────────────────────────────

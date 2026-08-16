@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.handlers.chat import _split_text, send_long_message
-from bot.handlers.tools import _get_text, _LANGUAGES
+from bot.handlers.tools import _get_text, _LANGUAGES, _parse_translation_args
 
 
 class TestSplitText:
@@ -127,6 +127,36 @@ class TestLanguages:
     def test_languages_count(self):
         """Verifica que ha pelo menos 10 idiomas suportados."""
         assert len(_LANGUAGES) >= 10
+
+    def test_parse_translation_args_default(self):
+        """Sem idioma informado, retorna None para acionar a seleção interativa."""
+        lang, text = _parse_translation_args(["Ola", "mundo"])
+        assert lang is None
+        assert text == "Ola mundo"
+
+    def test_parse_translation_args_with_code(self):
+        """Uso de codigo de idioma (ex: es)."""
+        lang, text = _parse_translation_args(["es", "Ola", "mundo"])
+        assert lang == "espanhol"
+        assert text == "Ola mundo"
+
+    def test_parse_translation_args_with_full_name(self):
+        """Uso de nome completo de idioma (ex: espanhol, ingles)."""
+        lang, text = _parse_translation_args(["espanhol", "Ola", "mundo"])
+        assert lang == "espanhol"
+        assert text == "Ola mundo"
+
+    def test_parse_translation_args_with_preposition(self):
+        """Uso com preposicoes 'para o', 'para a', 'para'."""
+        lang, text = _parse_translation_args(["para", "o", "francês", "Bom", "dia"])
+        assert lang == "francês"
+        assert text == "Bom dia"
+
+    def test_parse_translation_args_empty_text_for_reply(self):
+        """Argumento apenas de idioma para mensagem respondida."""
+        lang, text = _parse_translation_args(["para", "espanhol"])
+        assert lang == "espanhol"
+        assert text is None
 
 
 class TestHandlerMessages:

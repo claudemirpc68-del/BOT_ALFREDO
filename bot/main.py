@@ -19,6 +19,7 @@ from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
 )
 from telegram.request import HTTPXRequest
@@ -37,6 +38,7 @@ from bot.handlers.tools import (
     pesquisar_command,
     resumir_command,
     traduzir_command,
+    traduzir_callback_handler,
     linkedin_command,
     olhardigital_command,
     hora_command,
@@ -350,6 +352,9 @@ def main() -> None:
     app.add_handler(CommandHandler("hora", hora_command))
     app.add_handler(CommandHandler("data", hora_command))
 
+
+    # ── Registra handlers de callbacks (botões interativos) ──
+    app.add_handler(CallbackQueryHandler(traduzir_callback_handler, pattern=r"^trans:"))
 
     # ── Registra handlers de mensagens ──
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
