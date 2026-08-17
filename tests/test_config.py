@@ -50,8 +50,8 @@ class TestConfig:
     def test_groq_model(self):
         """Verifica que o modelo do Groq esta definido."""
         from bot.config import GROQ_MODEL
-        assert GROQ_MODEL, "GROQ_MODEL nao definido"
-        assert "llama" in GROQ_MODEL.lower() or "mixtral" in GROQ_MODEL.lower(), (
+        allowed_families = ("llama", "mixtral", "qwen", "compound", "openai", "gpt", "gemma")
+        assert any(f in GROQ_MODEL.lower() for f in allowed_families), (
             f"Modelo '{GROQ_MODEL}' nao parece ser um modelo Groq esperado"
         )
 

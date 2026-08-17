@@ -125,8 +125,8 @@ class DiagnosticoEAutocorrecao:
                     "TELEGRAM_BOT_TOKEN=\n"
                     "GROQ_API_KEY=\n"
                     "TAVILY_API_KEY=\n"
-                    "GROQ_MODEL=llama-3.3-70b-versatile\n"
-                    "GROQ_VISION_MODEL=llama-3.2-11b-vision-preview\n"
+                    "GROQ_MODEL=qwen/qwen3.6-27b\n"
+                    "GROQ_VISION_MODEL=qwen/qwen3.6-27b\n"
                     "BOT_NAME=ALFREDO\n"
                     "DB_PATH=data/alfredo.db\n"
                     "FINEXLY_API_KEY=\n"
@@ -248,7 +248,7 @@ class DiagnosticoEAutocorrecao:
                 self.relatar_erro(f"Integridade do banco de dados comprometida: {row}")
 
             # Tabelas esperadas
-            tabelas_esperadas = ["users", "chat_history", "reminders"]
+            tabelas_esperadas = ["users", "messages", "reminders"]
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             tabelas_existentes = [r[0] for r in cursor.fetchall()]
 
@@ -306,8 +306,8 @@ class DiagnosticoEAutocorrecao:
         if groq_key:
             try:
                 from bot.services.groq_service import GroqService
-                model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-                vision_model = os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview")
+                model = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
+                vision_model = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.6-27b")
                 groq = GroqService(api_key=groq_key, model=model, vision_model=vision_model)
                 resp = await groq.chat("Olá", [])
                 if resp:

@@ -19,9 +19,9 @@ FINEXLY_API_KEY: str = os.getenv("FINEXLY_API_KEY", "")
 GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Configurações do Bot ---
-GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL: str = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
 if not GROQ_MODEL or not GROQ_MODEL.strip():
-    GROQ_MODEL = "llama-3.3-70b-versatile"
+    GROQ_MODEL = "qwen/qwen3.6-27b"
 
 GROQ_VISION_MODEL: str = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.6-27b")
 if not GROQ_VISION_MODEL or not GROQ_VISION_MODEL.strip():

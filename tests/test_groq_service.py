@@ -22,7 +22,7 @@ class TestGroqServiceInit:
     def test_service_default_model(self):
         """Verifica o modelo padrão."""
         service = GroqService(api_key="test_key")
-        assert service.model == "llama-3.3-70b-versatile"
+        assert service.model == "qwen/qwen3.6-27b"
 
     def test_system_prompt_exists(self):
         """Verifica que o system prompt (PERSONA) está definido e contém informações chave."""

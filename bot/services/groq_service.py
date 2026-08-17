@@ -19,7 +19,7 @@ class GroqService:
     def __init__(
         self,
         api_key: str,
-        model: str = "llama-3.3-70b-versatile",
+        model: str = "qwen/qwen3.6-27b",
         vision_model: str = "qwen/qwen3.6-27b",
     ):
         self.client = AsyncGroq(api_key=api_key)

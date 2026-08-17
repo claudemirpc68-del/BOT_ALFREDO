@@ -95,7 +95,7 @@ async def testar_telegram():
 async def testar_groq():
     print(f"{Cores.NEGRITO}3. Testando Conexão com a API da Groq...{Cores.RESET}")
     api_key = os.getenv("GROQ_API_KEY")
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    model = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
     
     try:
         from groq import AsyncGroq

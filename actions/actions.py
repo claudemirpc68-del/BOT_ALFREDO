@@ -33,7 +33,7 @@ def _obter_cliente_groq() -> tuple[Groq | None, str]:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return None, ""
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    model = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
     return Groq(api_key=api_key), model
 
 
