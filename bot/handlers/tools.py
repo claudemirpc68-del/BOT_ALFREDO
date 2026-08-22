@@ -654,6 +654,7 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
+        prompt += "\n\n[DIRETRIZ DE DESEMPENHO]\nSeja conciso, direto e dinâmico. Elabore o resumo diretamente no formato final para o Telegram."
         
         if viagem_text:
             prompt += "\n- Caso haja informações de Tempo de Viagem e Trânsito no contexto, inclua uma seção dedicada apresentando a distância, o tempo estimado e o trânsito atual de forma elegante."
@@ -688,8 +689,8 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         response = await groq.client.chat.completions.create(
             model=groq.model,
             messages=messages,
-            temperature=0.6,
-            max_tokens=2048
+            temperature=0.5,
+            max_tokens=4096
         )
 
         texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o resumo das notícias de hoje."
@@ -698,9 +699,10 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Erro na execução do callback de notícias diárias: {e}", exc_info=True)
         try:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="❌ Ocorreu um erro ao processar o seu lembrete diário de notícias."
+            await _safe_send_message(
+                context.bot,
+                chat_id,
+                "❌ Não foi possível carregar as notícias diárias hoje. Verifiquei as conexões e tentarei novamente no próximo horário programado."
             )
         except Exception:
             pass
@@ -710,83 +712,65 @@ async def lembretes_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """Lista todos os lembretes ativos do usuário."""
     db = context.bot_data["db"]
     user = update.effective_user
-    user_id = user.id
 
     try:
-        try:
-            await db.save_user(user.id, user.username, user.first_name, user.last_name)
-        except Exception as e:
-            logger.error(f"Erro ao registrar usuário ao listar lembretes: {e}")
-
-        reminders = await db.get_user_reminders(user_id)
+        reminders = await db.get_user_reminders(user.id)
         if not reminders:
-            await update.message.reply_text("⏰ Você não possui nenhum lembrete ativo no momento.")
+            await update.message.reply_text(
+                "⏰ *Você não possui lembretes ou notícias agendadas.*\n\n"
+                "Para criar um novo:\n"
+                "• Lembrete simples: `/lembrete 30min Comprar pão`\n"
+                "• Notícias diárias: `/lembrete noticias 06:30 Brasil Mundo` ou fale no chat: _'Alfredo, me mande as notícias às 06:30'_",
+                parse_mode="Markdown"
+            )
             return
 
-        text = "⏰ *Seus Lembretes Ativos:*\n\n"
+        texto = "⏰ *Seus Lembretes e Agendamentos Ativos:*\n\n"
         for r in reminders:
             r_id = r["id"]
-            r_type = "Diário" if r["type"] == "daily" else "Único"
-            r_time = r["trigger_time"]
-            r_content = r["content"]
+            r_type = r["type"]
+            trigger = r["trigger_time"]
+            content = r["content"]
 
-            if r["type"] == "daily":
-                text += f"• *ID:* `{r_id}` | 📅 *{r_type} às {r_time}*\n"
-                text += f"  📌 Temas: _{r_content}_\n\n"
+            if r_type == "daily":
+                texto += f"• *ID {r_id}* (Diário às {trigger}): 📰 Notícias sobre _{content}_\n"
             else:
-                try:
-                    from datetime import datetime
-                    dt = datetime.fromisoformat(r_time)
-                    time_str = dt.strftime("%d/%m/%Y às %H:%M")
-                except Exception:
-                    time_str = r_time
-                text += f"• *ID:* `{r_id}` | ⏰ *{r_type} para {time_str}*\n"
-                text += f"  📌 Lembrete: _{r_content}_\n\n"
+                texto += f"• *ID {r_id}* (Único): 📌 _{content}_\n"
 
-        text += "💡 Para cancelar um lembrete, use: `/lembrete_cancelar <ID>`"
-        await update.message.reply_text(text, parse_mode="Markdown")
+        texto += "\nPara cancelar qualquer um, use: `/cancelarlembrete <ID>`"
+        await update.message.reply_text(texto, parse_mode="Markdown")
+
     except Exception as e:
         logger.error(f"Erro ao listar lembretes: {e}", exc_info=True)
-        await update.message.reply_text("❌ Ocorreu um erro ao listar seus lembretes.")
+        await update.message.reply_text("❌ Ocorreu um erro ao consultar seus lembretes.")
 
 
-async def lembrete_cancelar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Cancela um lembrete ativo com base no ID."""
+async def cancelar_lembrete_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Cancela um lembrete específico pelo ID."""
     db = context.bot_data["db"]
     user = update.effective_user
-    user_id = user.id
-    args = context.args or []
 
-    if not args:
-        await update.message.reply_text("⚠️ Como usar: `/lembrete_cancelar <ID>`\nExemplo: `/lembrete_cancelar 5`")
+    if not context.args:
+        await update.message.reply_text("⚠️ Uso: `/cancelarlembrete <ID>`\n(Consulte os IDs com `/lembretes`)", parse_mode="Markdown")
         return
 
     try:
-        try:
-            await db.save_user(user.id, user.username, user.first_name, user.last_name)
-        except Exception as e:
-            logger.error(f"Erro ao registrar usuário ao cancelar lembrete: {e}")
-        reminder_id = int(args[0])
+        reminder_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("⚠️ O ID do lembrete deve ser um número inteiro.")
+        await update.message.reply_text("❌ O ID do lembrete deve ser um número. Ex: `/cancelarlembrete 1`", parse_mode="Markdown")
         return
 
     try:
-        reminders = await db.get_user_reminders(user_id)
-        reminder = next((r for r in reminders if r["id"] == reminder_id), None)
-
-        if not reminder:
-            await update.message.reply_text("❌ Lembrete não encontrado ou você não tem permissão para cancelá-lo.")
+        deleted = await db.delete_reminder(reminder_id, user.id)
+        if not deleted:
+            await update.message.reply_text("⚠️ Lembrete não encontrado ou já executado.")
             return
 
-        # 1. Exclui do banco
-        await db.delete_reminder(reminder_id)
-
-        # 2. Cancela da job_queue do bot
+        # Remove da JobQueue se estiver rodando
         jobs_cancelados = 0
-        for job in context.job_queue.jobs():
-            job_data = job.data or {}
-            if job_data.get("reminder_id") == reminder_id:
+        job_names = [f"reminder_{user.id}_{reminder_id}", f"news_{user.id}_{reminder_id}"]
+        for name in job_names:
+            for job in context.job_queue.get_jobs_by_name(name):
                 job.schedule_removal()
                 jobs_cancelados += 1
 
@@ -820,7 +804,7 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         for termo in ["Brasil", "Mundo"]:
             query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
             try:
-                busca = await tavily.search(query)
+                busca = await tavily.search(query, max_results=3)
                 manchetes[termo] = tavily.extract_context(busca)
             except Exception as ex:
                 logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim: {ex}")
@@ -840,6 +824,7 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
+        prompt += "\n\n[DIRETRIZ DE DESEMPENHO]\nSeja conciso, direto e dinâmico. Elabore o boletim diretamente no formato final para o Telegram."
 
         from datetime import datetime, timezone, timedelta
         try:
@@ -873,8 +858,8 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         response = await groq.client.chat.completions.create(
             model=groq.model,
             messages=messages,
-            temperature=0.6,
-            max_tokens=2048
+            temperature=0.5,
+            max_tokens=4096
         )
 
         texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias de hoje."
@@ -899,7 +884,7 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         for termo in ["Brasil", "Mundo"]:
             query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
             try:
-                busca = await tavily.search(query)
+                busca = await tavily.search(query, max_results=3)
                 manchetes[termo] = tavily.extract_context(busca)
             except Exception as ex:
                 logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim automático: {ex}")
@@ -909,6 +894,7 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
+        prompt += "\n\n[DIRETRIZ DE DESEMPENHO]\nSeja conciso, direto e dinâmico. Elabore o boletim noturno diretamente no formato final para o Telegram."
 
         from datetime import datetime, timezone, timedelta
         try:
@@ -940,8 +926,8 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         response = await groq.client.chat.completions.create(
             model=groq.model,
             messages=messages,
-            temperature=0.6,
-            max_tokens=2048
+            temperature=0.5,
+            max_tokens=4096
         )
 
         texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias de hoje."
@@ -974,7 +960,7 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
         for termo in ["Brasil", "Mundo"]:
             query = f"principais noticias de hoje sobre {termo} nos portais G1, BBC, CNN Brasil, Folha, Estadao"
             try:
-                busca = await tavily.search(query)
+                busca = await tavily.search(query, max_results=3)
                 manchetes[termo] = tavily.extract_context(busca)
             except Exception as ex:
                 logger.error(f"Erro ao buscar notícias do tema {termo} para o boletim matinal: {ex}")
@@ -994,6 +980,7 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
+        prompt += "\n\n[DIRETRIZ DE DESEMPENHO]\nSeja conciso, direto e dinâmico. Elabore o boletim matinal diretamente no formato final para o Telegram."
 
         from datetime import datetime, timezone, timedelta
         try:
@@ -1025,8 +1012,8 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
         response = await groq.client.chat.completions.create(
             model=groq.model,
             messages=messages,
-            temperature=0.6,
-            max_tokens=2048
+            temperature=0.5,
+            max_tokens=4096
         )
 
         texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias matinal de hoje."
@@ -1083,6 +1070,7 @@ async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYP
             noticias_context += f"Notícia {i}:\nTítulo: {artigo['titulo']}\nResumo: {artigo['resumo']}\nLink: {artigo['link']}\n\n"
             
         prompt_sistema = build_prompt("olhardigital")
+        prompt_sistema += "\n\n[DIRETRIZ DE DESEMPENHO]\nSeja conciso, direto e dinâmico. Elabore o resumo diretamente no formato final para o Telegram."
         
         filtro_info = f" (Filtro: {', '.join(preferencias)})" if preferencias else ""
         mensagem_usuario = (
@@ -1099,8 +1087,8 @@ async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": mensagem_usuario}
             ],
-            temperature=0.6,
-            max_tokens=2048,
+            temperature=0.5,
+            max_tokens=4096,
         )
         
         synthesized_response = GroqService._clean_response(resposta_ia.choices[0].message.content) or "🤔 Não consegui resumir as notícias."

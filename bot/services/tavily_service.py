@@ -88,10 +88,12 @@ class TavilyService:
         if answer:
             context_parts.append(f"Resposta direta: {answer}")
 
-        for result in results[:5]:
-            title = result.get("title", "")
-            content = result.get("content", "")
-            url = result.get("url", "")
+        for result in results[:4]:
+            title = result.get("title", "").strip()
+            content = result.get("content", "").strip()
+            url = result.get("url", "").strip()
+            if len(content) > 350:
+                content = content[:350] + "..."
             context_parts.append(f"[{title}]({url}): {content}")
 
         return "\n\n".join(context_parts)
