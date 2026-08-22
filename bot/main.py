@@ -344,6 +344,7 @@ def main() -> None:
     app.add_handler(CommandHandler("lembrete", lembrete_command))
     app.add_handler(CommandHandler("lembretes", lembretes_command))
     app.add_handler(CommandHandler("lembrete_cancelar", lembrete_cancelar_command))
+    app.add_handler(CommandHandler("cancelarlembrete", lembrete_cancelar_command))
     app.add_handler(CommandHandler("olhardigital", olhardigital_command))
     app.add_handler(CommandHandler("boletim", boletim_command))
     app.add_handler(CommandHandler("cotacao", cotacao_command))

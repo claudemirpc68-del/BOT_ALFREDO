@@ -781,6 +781,10 @@ async def cancelar_lembrete_command(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("❌ Ocorreu um erro ao cancelar o lembrete.")
 
 
+# Alias para compatibilidade
+lembrete_cancelar_command = cancelar_lembrete_command
+
+
 # ── /boletim ──────────────────────────────────────────────────
 
 async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
