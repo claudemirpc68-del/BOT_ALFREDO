@@ -12,6 +12,23 @@ from bot.services.groq_service import GroqService
 logger = logging.getLogger(__name__)
 
 
+def _extract_json(raw_text: str) -> dict:
+    """Extrai e faz parsing de um objeto JSON contido no texto gerado pela IA."""
+    if not raw_text:
+        return {}
+    cleaned = GroqService._clean_response(raw_text)
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        return {}
+
+
 async def _detect_geo_intent(groq: GroqService, text: str) -> dict:
     """Detecta se o usuário quer informações geográficas e extrai os parâmetros."""
     prompt = """Você é um assistente de extração de dados e intenção geográfica.
@@ -22,12 +39,11 @@ Identifique se ele está pedindo por:
 - Distância/Tempo: tempo de viagem ou distância física entre locais (tipo: "distancia").
 - Nenhuma intenção de localização (tipo: "nenhum").
 
-Responda EXCLUSIVAMENTE com um objeto JSON válido, sem tags markdown (como ```json ...) ou texto adicional.
-O JSON deve ter exatamente estas chaves:
+Responda APENAS com um objeto JSON válido (sem texto fora das chaves {}):
 {
   "tipo": "rota" | "busca_local" | "distancia" | "nenhum",
-  "origem": "endereço de origem de uma rota se mencionado. Se for busca_local, coloque aqui o ponto de referência, cidade ou região mencionado para a busca (ex: 'Suzano, SP'), senão null",
-  "destino": "endereço de destino ou rota de destino, senão null",
+  "origem": "endereço de origem se mencionado, senão null",
+  "destino": "endereço de destino, senão null",
   "busca": "termo do local que o usuário quer achar, se busca_local, senão null"
 }
 """
@@ -39,12 +55,14 @@ O JSON deve ter exatamente estas chaves:
         response = await groq.client.chat.completions.create(
             model=groq.model,
             messages=messages,
-            temperature=0.1,  # Baixa temperatura para classificação estável
-            max_tokens=256,
-            response_format={"type": "json_object"}  # Força retorno JSON no Groq
+            temperature=0.1,
+            max_tokens=1024,
         )
-        content = response.choices[0].message.content.strip()
-        return json.loads(content)
+        content = response.choices[0].message.content or ""
+        parsed = _extract_json(content)
+        if parsed:
+            return parsed
+        return {"tipo": "nenhum", "origem": None, "destino": None, "busca": None}
     except Exception as e:
         logger.error(f"Erro ao detectar intenção geográfica: {e}")
         return {"tipo": "nenhum", "origem": None, "destino": None, "busca": None}
@@ -61,8 +79,7 @@ Extraia os seguintes campos se mencionados:
 - email (e-mail de contato)
 - data_adesao (data mencionada no formato AAAA-MM-DD. Se não mencionada, use null)
 
-Responda EXCLUSIVAMENTE com um objeto JSON válido, sem tags markdown (como ```json ...) ou texto adicional.
-O JSON deve ter exatamente estas chaves:
+Responda APENAS com um objeto JSON válido (sem texto fora das chaves {}):
 {
   "quer_registrar": true | false,
   "nome": string | null,
@@ -81,14 +98,59 @@ O JSON deve ter exatamente estas chaves:
             model=groq.model,
             messages=messages,
             temperature=0.1,
-            max_tokens=256,
-            response_format={"type": "json_object"}
+            max_tokens=1024,
         )
-        content = response.choices[0].message.content.strip()
-        return json.loads(content)
+        content = response.choices[0].message.content or ""
+        parsed = _extract_json(content)
+        if parsed:
+            return parsed
+        return {"quer_registrar": False, "nome": None, "cpf": None, "plano": None, "email": None, "data_adesao": None}
     except Exception as e:
         logger.error(f"Erro ao detectar intenção de adesão: {e}")
         return {"quer_registrar": False, "nome": None, "cpf": None, "plano": None, "email": None, "data_adesao": None}
+
+
+async def _detect_reminder_intent(groq: GroqService, text: str) -> dict:
+    """Detecta se o usuário quer agendar um lembrete ou recebimento recorrente de notícias via mensagem em linguagem natural."""
+    triggers = ["noticia", "notícia", "noticias", "notícias", "boletim", "lembrete", "lembrar", "lembre", "avise", "avisar", "todo dia", "todos os dias", "diariamente", "às ", "as "]
+    text_lower = text.lower()
+    if not any(t in text_lower for t in triggers):
+        return {"tipo": "nenhum"}
+
+    prompt = """Você é um assistente de extração de intenções de agendamento de lembretes e notícias para o Telegram.
+Analise a mensagem do usuário e determine se ele está pedindo para:
+1. Agendar envio de notícias ou resumo de notícias em um horário específico (tipo: "daily_news"). Ex: "me mande notícias todo dia às 06:30", "agende notícias para 07:00", "me envie resumo de notícias às 19:00 sobre Brasil".
+2. Criar um lembrete simples para daqui a X minutos ou em um horário (tipo: "reminder"). Ex: "me lembre em 20 minutos de beber água", "avise-me em 1 hora sobre a reunião".
+3. Apenas uma pergunta comum sem agendamento (tipo: "nenhum"). Ex: "quais são as notícias de agora?", "quem ganhou o jogo?".
+
+Responda APENAS com um objeto JSON válido (sem texto fora das chaves {}):
+{
+  "tipo": "daily_news" | "reminder" | "nenhum",
+  "horario": "HH:MM (formato 24h, ex: '06:30', '19:00', se daily_news ou horário fixo, senão null)",
+  "minutos": número inteiro de minutos a partir de agora (se reminder relativo, senão null),
+  "temas": "temas de notícias solicitados (ex: 'Brasil Mundo', 'Tecnologia', padrão 'Brasil Mundo')",
+  "mensagem": "texto do lembrete (se reminder, senão null)"
+}
+"""
+    try:
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": text}
+        ]
+        response = await groq.client.chat.completions.create(
+            model=groq.model,
+            messages=messages,
+            temperature=0.1,
+            max_tokens=1024,
+        )
+        content = response.choices[0].message.content or ""
+        parsed = _extract_json(content)
+        if parsed:
+            return parsed
+        return {"tipo": "nenhum"}
+    except Exception as e:
+        logger.error(f"Erro ao detectar intenção de lembrete: {e}")
+        return {"tipo": "nenhum"}
 
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -128,6 +190,100 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     # Registra/atualiza o usuário no banco de dados primeiro (evita erro de chave estrangeira nas mensagens)
     await db.save_user(user.id, user.username, user.first_name, user.last_name)
+
+    # 0. Detecção de intenção de agendamento de lembrete / notícias diárias em linguagem natural
+    reminder_data = await _detect_reminder_intent(groq, message_text)
+    if reminder_data.get("tipo") == "daily_news" and reminder_data.get("horario"):
+        horario_str = reminder_data.get("horario")
+        temas_str = reminder_data.get("temas") or "Brasil Mundo"
+        try:
+            parts = horario_str.split(":")
+            hour = int(parts[0])
+            minute = int(parts[1])
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                # 1. Salva no banco de dados
+                reminder_id = await db.save_reminder(
+                    chat_id=user.id,
+                    user_id=user.id,
+                    reminder_type="daily",
+                    trigger_time=f"{hour:02d}:{minute:02d}",
+                    content=temas_str
+                )
+
+                # 2. Agenda no Telegram Job Queue
+                from datetime import time, timezone, timedelta
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz = ZoneInfo("America/Sao_Paulo")
+                except Exception:
+                    tz = timezone(timedelta(hours=-3))
+
+                trigger_time_obj = time(hour, minute, tzinfo=tz)
+                from bot.handlers.tools import _daily_news_callback
+
+                context.job_queue.run_daily(
+                    _daily_news_callback,
+                    time=trigger_time_obj,
+                    data={"chat_id": user.id, "user_id": user.id, "temas": temas_str, "reminder_id": reminder_id},
+                    name=f"news_{user.id}_{reminder_id}"
+                )
+
+                resposta_msg = (
+                    f"✅ *Lembrete diário de notícias agendado!*\n\n"
+                    f"⏰ Todos os dias às *{hour:02d}:{minute:02d}* (horário de Brasília)\n"
+                    f"📌 Assuntos: _{temas_str}_\n\n"
+                    f"💡 Entregarei o resumo das notícias pontualmente aqui no seu chat!"
+                )
+                await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                await db.save_message(user.id, "user", message_text)
+                await db.save_message(user.id, "model", resposta_msg)
+                return
+        except Exception as ex:
+            logger.error(f"Erro ao agendar notícias via linguagem natural: {ex}", exc_info=True)
+
+    elif reminder_data.get("tipo") == "reminder" and reminder_data.get("minutos"):
+        try:
+            minutes = int(reminder_data.get("minutos"))
+            texto_lembrete = reminder_data.get("mensagem") or message_text.replace("lembrete", "").strip()
+            if 1 <= minutes <= 1440:
+                from datetime import datetime, timezone, timedelta
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz = ZoneInfo("America/Sao_Paulo")
+                    agora_dt = datetime.now(tz)
+                except Exception:
+                    tz = timezone(timedelta(hours=-3))
+                    agora_dt = datetime.now(tz)
+
+                trigger_dt = agora_dt + timedelta(minutes=minutes)
+                reminder_id = await db.save_reminder(
+                    chat_id=user.id,
+                    user_id=user.id,
+                    reminder_type="once",
+                    trigger_time=trigger_dt.isoformat(),
+                    content=texto_lembrete
+                )
+
+                from bot.handlers.tools import _reminder_callback
+                context.job_queue.run_once(
+                    _reminder_callback,
+                    when=minutes * 60,
+                    data={"text": texto_lembrete, "chat_id": user.id, "user_name": user.first_name or "Amigo", "reminder_id": reminder_id},
+                    name=f"reminder_{user.id}_{reminder_id}"
+                )
+
+                time_str = f"{minutes} minutos" if minutes < 60 else f"{minutes // 60}h{f'{minutes % 60}min' if minutes % 60 else ''}"
+                resposta_msg = (
+                    f"✅ *Lembrete agendado!*\n\n"
+                    f"⏰ Vou te avisar em *{time_str}*\n"
+                    f"📌 _{texto_lembrete}_"
+                )
+                await update.message.reply_text(resposta_msg, parse_mode="Markdown")
+                await db.save_message(user.id, "user", message_text)
+                await db.save_message(user.id, "model", resposta_msg)
+                return
+        except Exception as ex:
+            logger.error(f"Erro ao agendar lembrete via linguagem natural: {ex}", exc_info=True)
 
     # 0. Detecção de intenção de adesão à planilha
     adesao_data = await _detect_adesao_intent(groq, message_text)

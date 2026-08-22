@@ -523,23 +523,69 @@ async def _reminder_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Erro ao deletar lembrete único do banco pós-disparo: {e}")
 
 
+def _split_news_chunks(text: str, max_length: int = 4000) -> list[str]:
+    """Divide texto longo em partes menores respeitando limites do Telegram e quebras de linha."""
+    if not text:
+        return []
+    chunks = []
+    while text:
+        if len(text) <= max_length:
+            chunks.append(text)
+            break
+        # Tenta quebra de parágrafo duplo primeiro
+        split_at = text.rfind("\n\n", 0, max_length)
+        if split_at == -1 or split_at < max_length // 2:
+            # Tenta quebra de linha simples
+            split_at = text.rfind("\n", 0, max_length)
+        if split_at == -1 or split_at < max_length // 2:
+            # Tenta espaço
+            split_at = text.rfind(" ", 0, max_length)
+        if split_at == -1:
+            split_at = max_length
+
+        chunks.append(text[:split_at].strip())
+        text = text[split_at:].lstrip()
+
+    return [c for c in chunks if c]
+
+
 async def _safe_send_message(bot, chat_id: int, text: str) -> None:
-    """Envia uma mensagem no Telegram com Markdown, e faz fallback para texto puro se houver erro de parsing."""
-    try:
-        await bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.warning(f"Erro ao enviar mensagem com Markdown para o chat {chat_id}: {e}. Tentando enviar como texto puro...")
+    """
+    Envia uma mensagem no Telegram de forma segura e resiliente:
+    1. Limpa blocos de raciocínio interno (<think>...</think>).
+    2. Divide automaticamente em chunks se ultrapassar o limite de 4096 caracteres do Telegram.
+    3. Envia com Markdown, com fallback para texto puro se houver erro de parsing em qualquer chunk.
+    """
+    if not text:
+        return
+
+    # 1. Limpeza de raciocínio de LLMs (<think>...</think>)
+    cleaned = GroqService._clean_response(text)
+    if not cleaned:
+        cleaned = text.strip()
+
+    # 2. Divide em blocos seguros
+    chunks = _split_news_chunks(cleaned, max_length=4000)
+    if not chunks:
+        return
+
+    # 3. Envia cada bloco
+    for chunk in chunks:
         try:
             await bot.send_message(
                 chat_id=chat_id,
-                text=text
+                text=chunk,
+                parse_mode="Markdown"
             )
-        except Exception as e_inner:
-            logger.error(f"Erro crítico ao enviar mensagem como texto puro para o chat {chat_id}: {e_inner}")
+        except Exception as e:
+            logger.warning(f"Erro ao enviar chunk com Markdown para o chat {chat_id}: {e}. Tentando enviar como texto puro...")
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=chunk
+                )
+            except Exception as e_inner:
+                logger.error(f"Erro crítico ao enviar mensagem como texto puro para o chat {chat_id}: {e_inner}")
 
 
 async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -646,7 +692,7 @@ async def _daily_news_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             max_tokens=2048
         )
 
-        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o resumo das notícias de hoje."
+        texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o resumo das notícias de hoje."
 
         await _safe_send_message(context.bot, chat_id, texto_resumo)
     except Exception as e:
@@ -831,12 +877,8 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             max_tokens=2048
         )
 
-        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias de hoje."
-        try:
-            await update.message.reply_text(texto_resumo, parse_mode="Markdown")
-        except Exception as markdown_err:
-            logger.warning(f"Erro ao enviar boletim interativo com Markdown: {markdown_err}. Enviando texto puro.")
-            await update.message.reply_text(texto_resumo)
+        texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias de hoje."
+        await send_long_message(update, texto_resumo)
 
     except Exception as e:
         logger.error(f"Erro ao gerar boletim de notícias: {e}", exc_info=True)
@@ -902,7 +944,7 @@ async def _daily_boletim_job(context: ContextTypes.DEFAULT_TYPE) -> None:
             max_tokens=2048
         )
 
-        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias de hoje."
+        texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias de hoje."
 
         # Obtém todos os usuários cadastrados no banco para enviar o boletim
         usuarios = await db.get_active_users()
@@ -987,7 +1029,7 @@ async def _daily_boletim_job_matinal(context: ContextTypes.DEFAULT_TYPE) -> None
             max_tokens=2048
         )
 
-        texto_resumo = response.choices[0].message.content or "🤔 Não consegui estruturar o boletim de notícias matinal de hoje."
+        texto_resumo = GroqService._clean_response(response.choices[0].message.content) or "🤔 Não consegui estruturar o boletim de notícias matinal de hoje."
 
         # Obtém todos os usuários cadastrados no banco para enviar o boletim
         usuarios = await db.get_active_users()
@@ -1061,7 +1103,7 @@ async def olhardigital_command(update: Update, context: ContextTypes.DEFAULT_TYP
             max_tokens=2048,
         )
         
-        synthesized_response = resposta_ia.choices[0].message.content or "🤔 Não consegui resumir as notícias."
+        synthesized_response = GroqService._clean_response(resposta_ia.choices[0].message.content) or "🤔 Não consegui resumir as notícias."
         
         links_list = "\n".join([f"• [{a['titulo'][:50]}...]({a['link']})" for a in resultados[:5]])
         final_text = f"📰 *Últimas de IA no Olhar Digital*{filtro_info}:\n\n{synthesized_response}"
