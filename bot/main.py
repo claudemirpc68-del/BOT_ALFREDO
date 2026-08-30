@@ -92,6 +92,11 @@ async def post_init(application) -> None:
     google_maps = GoogleMapsService(api_key=GOOGLE_MAPS_API_KEY)
     application.bot_data["google_maps"] = google_maps
 
+    # Serviço GENNIE (E-mails & Gmail via Bridge)
+    from bot.services.gennie_service import GennieService
+    gennie = GennieService()
+    application.bot_data["gennie"] = gennie
+
     # Configura o menu autocompletar de comandos no Telegram quando o usuário digita /
     commands = [
         BotCommand("start", "Iniciar atendimento e ver boas-vindas"),
@@ -112,6 +117,7 @@ async def post_init(application) -> None:
         BotCommand("lembrete", "Agendar um lembrete (ex: /lembrete 30m remedio)"),
         BotCommand("lembretes", "Listar todos os seus lembretes ativos"),
         BotCommand("lembrete_cancelar", "Cancelar um lembrete pelo ID"),
+        BotCommand("email", "Consultar e-mails e briefings da GENNIE"),
 
     ]
     try:
@@ -351,6 +357,8 @@ def main() -> None:
     app.add_handler(CommandHandler("rota", rota_command))
     app.add_handler(CommandHandler("onde", onde_command))
     app.add_handler(CommandHandler("hora", hora_command))
+    from bot.handlers.email_handler import email_command
+    app.add_handler(CommandHandler(("email", "emails"), email_command))
     app.add_handler(CommandHandler("data", hora_command))
 
 

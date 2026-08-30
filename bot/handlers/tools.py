@@ -818,6 +818,19 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         finexly = context.bot_data.get("finexly")
         rates = await finexly.get_rates(base="USD", symbols="BRL,EUR") if finexly else {}
         cotacoes_context = ""
+        # Consulta e-mails recentes e briefing da GENNIE
+        gennie_context = ""
+        gennie_svc = context.bot_data.get("gennie")
+        if gennie_svc:
+            try:
+                brief = await gennie_svc.obter_briefing(max_emails=4, sintetizar=False)
+                if brief.get("sucesso") and brief.get("emails"):
+                    linhas_em = []
+                    for em in brief["emails"][:3]:
+                        linhas_em.append(f"- De: {em.get('from')} | Assunto: {em.get('subject')} | Trecho: {em.get('trecho','')[:120]}...")
+                    gennie_context = "\n--- E-mails Recentes (via GENNIE) ---\n" + "\n".join(linhas_em) + "\n"
+            except Exception as ex_g:
+                logger.warning(f"Não foi possível obter e-mails da GENNIE para o boletim: {ex_g}")
         if rates:
             cotacoes_context = f"\n--- Cotação de Moedas (Base USD) ---\nUSD/BRL: {rates.get('BRL')}\nUSD/EUR: {rates.get('EUR')}\n"
 
@@ -825,6 +838,8 @@ async def boletim_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         contexto_pesquisa = f"--- Notícias sobre Brasil ---\n{manchetes['Brasil']}\n\n--- Notícias sobre Mundo ---\n{manchetes['Mundo']}\n"
         if cotacoes_context:
             contexto_pesquisa += cotacoes_context
+        if gennie_context:
+            contexto_pesquisa += gennie_context
 
         from bot.prompts.skills import build_prompt
         prompt = build_prompt("news_digest")
