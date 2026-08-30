@@ -20,9 +20,11 @@ import asyncio
 import logging
 from dotenv import load_dotenv
 
-# Garante saída em UTF-8 no Windows para evitar UnicodeEncodeError
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+# Garante saída em UTF-8 no Windows para evitar UnicodeEncodeError e buffering travado
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True, errors="replace")
+elif sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True, errors="replace")
 
 # Adiciona o diretório atual ao path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))

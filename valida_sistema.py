@@ -17,10 +17,12 @@ import logging
 import sqlite3
 from dotenv import load_dotenv
 
-# Garante saída em UTF-8 no Windows para evitar problemas com emojis
-if sys.platform == "win32":
+# Garante saída em UTF-8 no Windows para evitar problemas com emojis e buffering
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True, errors="replace")
+elif sys.platform == "win32":
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True, errors="replace")
 
 # Configuração de cores para o terminal
 class Cores:

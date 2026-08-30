@@ -31,6 +31,16 @@ def _extract_json(raw_text: str) -> dict:
 
 async def _detect_geo_intent(groq: GroqService, text: str) -> dict:
     """Detecta se o usuário quer informações geográficas e extrai os parâmetros."""
+    geo_triggers = [
+        "rota", "rotas", "como chegar", "direção", "direcao", "direções", "direcoes",
+        "onde fica", "onde tem", "onde encontro", "onde posso achar", "distância", "distancia",
+        "tempo de viagem", "perto de", "próximo", "proximo", "posto", "farmacia", "farmácia",
+        "hospital", "supermercado", "mercado", "restaurante", "shopping", "banco", "cep",
+        "rua ", "avenida", "av.", "itinerário", "itinerario", "localização", "localizacao"
+    ]
+    if not any(t in text.lower() for t in geo_triggers):
+        return {"tipo": "nenhum", "origem": None, "destino": None, "busca": None}
+
     prompt = """Você é um assistente de extração de dados e intenção geográfica.
 Analise a mensagem do usuário e extraia a intenção geográfica, se houver.
 Identifique se ele está pedindo por:
@@ -70,6 +80,14 @@ Responda APENAS com um objeto JSON válido (sem texto fora das chaves {}):
 
 async def _detect_adesao_intent(groq: GroqService, text: str) -> dict:
     """Detecta se o usuário quer registrar uma adesão de plano de saúde na planilha e extrai os dados."""
+    adesao_triggers = [
+        "adesão", "adesao", "cadastrar plano", "cadastrar adesão", "cadastrar adesao",
+        "registrar adesão", "registrar adesao", "plano de saúde", "plano de saude",
+        "nova adesão", "nova adesao", "planilha de adesão", "planilha de adesao"
+    ]
+    if not any(t in text.lower() for t in adesao_triggers):
+        return {"quer_registrar": False, "nome": None, "cpf": None, "plano": None, "email": None, "data_adesao": None}
+
     prompt = """Você é um assistente especializado em extrair dados de adesão de plano de saúde.
 Analise a mensagem do usuário e determine se ele quer registrar ou cadastrar uma nova adesão/plano na planilha.
 Extraia os seguintes campos se mencionados:
@@ -536,12 +554,45 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     else:
                         geo_context = "\n[SISTEMA: Erro ao calcular distância e tempo no Google Maps.]"
 
+    # 3. Detecção de pesquisa na web em linguagem natural
+    menciona_busca = any(w in message_text.lower() for w in ["pesquise", "pesquisar", "busca na web", "procure na internet", "notícias sobre", "noticias sobre", "notícias de hoje", "o que aconteceu com", "resultado do jogo", "quem ganhou", "quem é o presidente", "previsão do tempo"])
+    search_context = ""
+    if menciona_busca:
+        tavily = context.bot_data.get("tavily")
+        if tavily:
+            try:
+                res_busca = await tavily.search(message_text, max_results=3)
+                txt_ctx = tavily.extract_context(res_busca)
+                if txt_ctx:
+                    search_context = f"\n[DADOS DE PESQUISA EM TEMPO REAL NA WEB (Tavily)]\n{txt_ctx}\n"
+            except Exception as e_s:
+                logger.warning(f"Erro ao buscar no Tavily via chat: {e_s}")
+
+    # 4. Detecção de consulta de e-mails em linguagem natural
+    menciona_email = any(w in message_text.lower() for w in ["meus emails", "meus e-mails", "briefing de email", "ler emails", "checar email", "tem email novo", "tem e-mail novo"])
+    email_context = ""
+    if menciona_email:
+        gennie = context.bot_data.get("gennie")
+        if gennie:
+            try:
+                brief = await gennie.obter_briefing(max_emails=4, sintetizar=True)
+                if brief.get("sucesso") and brief.get("sintese_executiva"):
+                    email_context = f"\n[BRIEFING DE E-MAILS DA GENNIE]\n{brief['sintese_executiva']}\n"
+            except Exception as e_g:
+                logger.warning(f"Erro ao obter emails via chat: {e_g}")
+
     # Injeta contextos adicionais se houverem
     if moeda_context:
         message_text += moeda_context
     if geo_context:
         logger.info(f"Contexto geográfico injetado: {geo_context}")
         message_text += geo_context
+    if search_context:
+        logger.info("Contexto de pesquisa web injetado.")
+        message_text += search_context
+    if email_context:
+        logger.info("Contexto de e-mails injetado.")
+        message_text += email_context
 
     # Busca histórico de conversa
     history = await db.get_history(user.id)

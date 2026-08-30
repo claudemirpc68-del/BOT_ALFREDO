@@ -32,8 +32,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Garante saída UTF-8 no Windows para suporte a emojis no console
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True, errors="replace")
+elif sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_buffering=True, errors="replace")
 
 # Configuração de Cores do Terminal
 class Cores:

@@ -68,6 +68,13 @@ logger = logging.getLogger(__name__)
 
 async def post_init(application) -> None:
     """Inicializa banco de dados, serviço Groq e restaura lembretes do banco."""
+    from datetime import datetime, timezone, timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("America/Sao_Paulo")
+    except Exception:
+        tz = timezone(timedelta(hours=-3))
+
     # Banco de dados
     db = Database(DB_PATH)
     await db.initialize()
@@ -359,8 +366,6 @@ def main() -> None:
     app.add_handler(CommandHandler("rota", rota_command))
     app.add_handler(CommandHandler("onde", onde_command))
     app.add_handler(CommandHandler("hora", hora_command))
-    from bot.handlers.email_handler import email_command
-    app.add_handler(CommandHandler(("email", "emails"), email_command))
     app.add_handler(CommandHandler("data", hora_command))
 
 
