@@ -47,6 +47,7 @@ from bot.handlers.tools import (
     rota_command,
     onde_command,
 )
+from bot.handlers.email_handler import email_command
 from bot.services.groq_service import GroqService
 from bot.services.tavily_service import TavilyService
 
@@ -103,6 +104,7 @@ async def post_init(application) -> None:
         BotCommand("help", "Ajuda e menu com todos os comandos disponíveis"),
         BotCommand("nova", "Iniciar uma nova conversa e limpar histórico"),
         BotCommand("status", "Verificar o status e saúde do bot"),
+        BotCommand("email", "Consultar e-mails e briefings da GENNIE"),
         BotCommand("resumir", "Resumir um texto ou mensagem"),
         BotCommand("traduzir", "Traduzir texto para outro idioma"),
         BotCommand("codigo", "Gerar ou explicar código de programação"),
@@ -117,7 +119,6 @@ async def post_init(application) -> None:
         BotCommand("lembrete", "Agendar um lembrete (ex: /lembrete 30m remedio)"),
         BotCommand("lembretes", "Listar todos os seus lembretes ativos"),
         BotCommand("lembrete_cancelar", "Cancelar um lembrete pelo ID"),
-        BotCommand("email", "Consultar e-mails e briefings da GENNIE"),
 
     ]
     try:
@@ -342,6 +343,7 @@ def main() -> None:
     app.add_handler(CommandHandler("nova", nova_command))
     app.add_handler(CommandHandler("reset", nova_command))
     app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(CommandHandler(("email", "emails"), email_command))
     app.add_handler(CommandHandler("resumir", resumir_command))
     app.add_handler(CommandHandler("traduzir", traduzir_command))
     app.add_handler(CommandHandler("codigo", codigo_command))
